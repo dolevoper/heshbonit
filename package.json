@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "dev": "npx elm-live src/Main.elm --open --start-page=index.html --hot --pushstate -- --output=app.js"
+  },
   "devDependencies": {
     "elm-format": "^0.8.5",
     "elm-review": "^2.7.5",
