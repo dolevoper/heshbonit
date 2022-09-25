@@ -1,0 +1,9 @@
+@import url(//fonts.googleapis.com/css?family=Rubik);
+
+html {
+    direction: rtl;
+}
+
+body {
+    font-family: "Rubik", Verdana, Geneva, Tahoma, sans-serif;
+}
