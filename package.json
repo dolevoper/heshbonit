@@ -9,6 +9,7 @@
   },
   "devDependencies": {
     "copyfiles": "^2.4.1",
+    "elm": "^0.19.1-5",
     "elm-format": "^0.8.5",
     "elm-review": "^2.7.5",
     "elm-test": "^0.19.1-revision9",
