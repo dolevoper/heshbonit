@@ -4,5 +4,7 @@ elm-stuff
 repl-temp-*
 
 node_modules
+public
+.firebase
 
 app.js

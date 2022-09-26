@@ -1,11 +1,38 @@
 {
   "scripts": {
     "dev": "npx elm-live src/Main.elm --open --start-page=index.html --hot --pushstate -- --output=app.js",
-    "prepare": "elm install"
+    "build:clean": "rimraf public",
+    "build:elm": "elm make src/Main.elm --optimize --output=public/app.js",
+    "build:uglify": "uglifyjs public/app.js --compress pure_funcs=[F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9],pure_getters,keep_fargs=false,unsafe_comps,unsafe | uglifyjs --mangle --output public/app.js",
+    "build:copy": "copyfiles index.html *.css public",
+    "build": "npm-run-all build:*"
   },
   "devDependencies": {
+    "copyfiles": "^2.4.1",
     "elm-format": "^0.8.5",
     "elm-review": "^2.7.5",
-    "elm-test": "^0.19.1-revision9"
-  }
+    "elm-test": "^0.19.1-revision9",
+    "firebase-tools": "^11.10.0",
+    "npm-run-all": "^4.1.5",
+    "rimraf": "^3.0.2",
+    "uglify-js": "^3.17.2"
+  },
+  "name": "heshbonit",
+  "version": "1.0.0",
+  "main": "app.js",
+  "dependencies": {
+    "firebase": "^9.10.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dolevoper/heshbonit.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dolevoper/heshbonit/issues"
+  },
+  "homepage": "https://github.com/dolevoper/heshbonit#readme",
+  "description": ""
 }
