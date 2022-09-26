@@ -4,7 +4,7 @@ import Browser
 import Browser.Navigation exposing (Key, load, pushUrl)
 import Date exposing (Date, date, toDataString, toShortString)
 import Dict exposing (Dict)
-import Html exposing (Html, a, article, button, h1, h2, h3, h4, main_, p, span, table, td, text, time, tr)
+import Html exposing (Html, a, article, br, button, h1, h2, h3, h4, main_, p, span, table, td, text, time, tr)
 import Html.Attributes exposing (datetime, href)
 import Html.Events exposing (onClick)
 import Route as Route exposing (Route)
@@ -143,7 +143,7 @@ viewMain model =
             viewInvoice num <| Dict.get num invoices
 
         NotFound _ _ ->
-            p [] [ text "Not found" ]
+            viewNotFound "הדף שחיפשת לא קיים."
 
 
 viewHome : Invoices -> Html Msg
@@ -170,10 +170,10 @@ viewInvoice : Int -> Maybe InvoiceData -> Html Msg
 viewInvoice num maybeInvoice =
     case maybeInvoice of
         Nothing ->
-            p [] [ text ("אופס, לא מצאתי חשבונית עם מספר " ++ String.fromInt num) ]
+            viewNotFound ("אופס, לא מצאתי חשבונית עם מספר " ++ String.fromInt num)
 
         Just invoice ->
-            article []
+            main_ []
                 [ h1 [] [ text invoice.business.name, a [ href <| Url.Builder.absolute [] [] ] [ text "❌" ] ]
                 , h2 [] [ "עוסק פטור " ++ invoice.business.id |> text ]
                 , h3 [] [ "קבלה מס' " ++ String.fromInt num |> text ]
@@ -191,6 +191,11 @@ viewDate rd =
 
         Err _ ->
             span [] [ text "INVALID DATE" ]
+
+
+viewNotFound : String -> Html Msg
+viewNotFound msg =
+    main_ [] [ p [] [ text msg, br [] [], a [ href <| Url.Builder.absolute [] [] ] [ text "חזרה לדף הראשי" ] ] ]
 
 
 main : Program () Model Msg
