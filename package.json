@@ -4,7 +4,7 @@
     "build:clean": "rimraf public",
     "build:elm": "elm make src/Main.elm --optimize --output=public/app.js",
     "build:uglify": "uglifyjs public/app.js --compress pure_funcs=[F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9],pure_getters,keep_fargs=false,unsafe_comps,unsafe | uglifyjs --mangle --output public/app.js",
-    "build:copy": "copyfiles index.html *.css public",
+    "build:copy": "copyfiles index.html firebase.js *.css public",
     "build": "npm-run-all build:*"
   },
   "devDependencies": {
@@ -21,9 +21,6 @@
   "name": "heshbonit",
   "version": "1.0.0",
   "main": "app.js",
-  "dependencies": {
-    "firebase": "^9.10.0"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/dolevoper/heshbonit.git"

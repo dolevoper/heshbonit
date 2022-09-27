@@ -13,8 +13,7 @@ import Url.Builder
 
 
 type alias InvoiceData =
-    { business : { name : String, id : String }
-    , date : Result String Date
+    { date : Result String Date
     , amount : Float
     , description : String
     }
@@ -56,15 +55,13 @@ init _ url key =
         invoices =
             Dict.fromList
                 [ ( 40001
-                  , { business = { name = "אדווה דולב", id = "201637691" }
-                    , date = date { day = 25, month = 9, year = 2022 }
+                  , { date = date { day = 25, month = 9, year = 2022 }
                     , amount = 150
                     , description = "שיעור"
                     }
                   )
                 , ( 40002
-                  , { business = { name = "אדווה דולב", id = "201637691" }
-                    , date = date { day = 25, month = 9, year = 2022 }
+                  , { date = date { day = 25, month = 9, year = 2022 }
                     , amount = 150
                     , description = "שיעור"
                     }
@@ -174,8 +171,8 @@ viewInvoice num maybeInvoice =
 
         Just invoice ->
             main_ []
-                [ h1 [] [ text invoice.business.name, a [ href <| Url.Builder.absolute [] [] ] [ text "❌" ] ]
-                , h2 [] [ "עוסק פטור " ++ invoice.business.id |> text ]
+                [ h1 [] [ text "אדווה דולב", a [ href <| Url.Builder.absolute [] [] ] [ text "❌" ] ]
+                , h2 [] [ "עוסק פטור 201637691" |> text ]
                 , h3 [] [ "קבלה מס' " ++ String.fromInt num |> text ]
                 , p [] [ h4 [] [ text "עבור" ], text invoice.description ]
                 , p [] [ "סה\"כ: " ++ String.fromFloat invoice.amount ++ "₪" |> text ]
