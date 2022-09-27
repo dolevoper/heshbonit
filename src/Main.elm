@@ -16,6 +16,7 @@ type Model
     = Home Key (Maybe Invoices)
     | Invoice Key (Maybe Invoices) Int
     | NotFound Key (Maybe Invoices)
+    | Error Key String
 
 
 type Msg
@@ -60,6 +61,9 @@ update msg model =
                 NotFound key _ ->
                     key
 
+                Error key _ ->
+                    key
+
         invoices =
             case model of
                 Home _ i ->
@@ -70,6 +74,9 @@ update msg model =
 
                 NotFound _ i ->
                     i
+
+                Error _ _ ->
+                    Nothing
 
         setInvoices : Maybe Invoices -> Model -> Model
         setInvoices i m =
@@ -82,6 +89,9 @@ update msg model =
 
                 NotFound k _ ->
                     NotFound k i
+
+                Error _ _ ->
+                    m
     in
     case ( model, msg ) of
         ( _, LinkClicked urlRequest ) ->
@@ -99,8 +109,8 @@ update msg model =
 
         ( _, ReceivedInvoices v ) ->
             case Invoices.fromJson v of
-                Err _ ->
-                    ( model, Cmd.none )
+                Err str ->
+                    ( Error navKey str, Cmd.none )
 
                 Ok i ->
                     ( setInvoices (Just i) model, Cmd.none )
@@ -129,6 +139,9 @@ viewMain model =
 
         NotFound _ _ ->
             main_ [] <| viewNotFound "הדף שחיפשת לא קיים."
+
+        Error _ str ->
+            main_ [] [ p [] [ text str ] ]
 
 
 viewHome : Maybe Invoices -> Html Msg
