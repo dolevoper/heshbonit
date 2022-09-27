@@ -13,9 +13,9 @@ import Url.Builder
 
 
 type Model
-    = Home Key Invoices
-    | Invoice Key Invoices Int
-    | NotFound Key Invoices
+    = Home Key (Maybe Invoices)
+    | Invoice Key (Maybe Invoices) Int
+    | NotFound Key (Maybe Invoices)
 
 
 type Msg
@@ -24,7 +24,7 @@ type Msg
     | ReceivedInvoices Json.Decode.Value
 
 
-fromUrl : Key -> Invoices -> Url -> Model
+fromUrl : Key -> Maybe Invoices -> Url -> Model
 fromUrl navKey invoices url =
     case Route.fromUrl url of
         Nothing ->
@@ -41,7 +41,7 @@ fromUrl navKey invoices url =
 
 init : () -> Url -> Key -> ( Model, Cmd Msg )
 init _ url key =
-    ( fromUrl key (Invoices.empty Invoices.defaultBase) url
+    ( fromUrl key Nothing url
     , Cmd.none
     )
 
@@ -70,6 +70,18 @@ update msg model =
 
                 NotFound _ i ->
                     i
+
+        setInvoices : Maybe Invoices -> Model -> Model
+        setInvoices i m =
+            case m of
+                Home k _ ->
+                    Home k i
+
+                Invoice k _ n ->
+                    Invoice k i n
+
+                NotFound k _ ->
+                    NotFound k i
     in
     case ( model, msg ) of
         ( _, LinkClicked urlRequest ) ->
@@ -85,11 +97,13 @@ update msg model =
             , Cmd.none
             )
 
-        ( Home k i, ReceivedInvoices v ) ->
-            ( Home k (Result.withDefault i <| Invoices.fromJson v), Cmd.none )
+        ( _, ReceivedInvoices v ) ->
+            case Invoices.fromJson v of
+                Err _ ->
+                    ( model, Cmd.none )
 
-        _ ->
-            ( model, Cmd.none )
+                Ok i ->
+                    ( setInvoices (Just i) model, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
@@ -111,13 +125,13 @@ viewMain model =
             viewHome invoices
 
         Invoice _ invoices num ->
-            viewInvoice num <| Invoices.get num invoices
+            viewInvoice num invoices
 
         NotFound _ _ ->
-            viewNotFound "הדף שחיפשת לא קיים."
+            main_ [] <| viewNotFound "הדף שחיפשת לא קיים."
 
 
-viewHome : Invoices -> Html Msg
+viewHome : Maybe Invoices -> Html Msg
 viewHome invoices =
     let
         invoiceRow : Int -> InvoiceData -> Html Msg
@@ -132,25 +146,39 @@ viewHome invoices =
     in
     main_ []
         [ h1 [] [ text "קבלות" ]
-        , table [] <| Invoices.toList invoiceRow invoices
+        , case invoices of
+            Just i ->
+                table [] <| Invoices.toList invoiceRow i
+
+            Nothing ->
+                p [] [ text "טוען..." ]
         ]
 
 
-viewInvoice : Int -> Maybe InvoiceData -> Html Msg
-viewInvoice num maybeInvoice =
-    case maybeInvoice of
-        Nothing ->
-            viewNotFound ("אופס, לא מצאתי חשבונית עם מספר " ++ String.fromInt num)
+viewInvoice : Int -> Maybe Invoices -> Html Msg
+viewInvoice num invoices =
+    let
+        maybeInvoice =
+            Maybe.andThen (Invoices.get num) invoices
+    in
+    main_ [] <|
+        [ h1 [] [ text "אדווה דולב", a [ href <| Url.Builder.absolute [] [] ] [ text "❌" ] ]
+        , h2 [] [ "עוסק פטור 201637691" |> text ]
+        , h3 [] [ "קבלה מס' " ++ String.fromInt num |> text ]
+        ]
+            ++ (case ( invoices, maybeInvoice ) of
+                    ( Nothing, _ ) ->
+                        [ p [] [ text "טוען..." ] ]
 
-        Just invoice ->
-            main_ []
-                [ h1 [] [ text "אדווה דולב", a [ href <| Url.Builder.absolute [] [] ] [ text "❌" ] ]
-                , h2 [] [ "עוסק פטור 201637691" |> text ]
-                , h3 [] [ "קבלה מס' " ++ String.fromInt num |> text ]
-                , p [] [ h4 [] [ text "עבור" ], text invoice.description ]
-                , p [] [ "סה\"כ: " ++ String.fromFloat invoice.amount ++ "₪" |> text ]
-                , viewDate invoice.date
-                ]
+                    ( Just _, Nothing ) ->
+                        viewNotFound ("אופס, לא מצאתי חשבונית עם מספר " ++ String.fromInt num)
+
+                    ( _, Just invoice ) ->
+                        [ p [] [ h4 [] [ text "עבור" ], text invoice.description ]
+                        , p [] [ "סה\"כ: " ++ String.fromFloat invoice.amount ++ "₪" |> text ]
+                        , viewDate invoice.date
+                        ]
+               )
 
 
 viewDate : Result String Date -> Html Msg
@@ -163,9 +191,9 @@ viewDate rd =
             span [] [ text "INVALID DATE" ]
 
 
-viewNotFound : String -> Html Msg
+viewNotFound : String -> List (Html Msg)
 viewNotFound msg =
-    main_ [] [ p [] [ text msg, br [] [], a [ href <| Url.Builder.absolute [] [] ] [ text "חזרה לדף הראשי" ] ] ]
+    [ p [] [ text msg, br [] [], a [ href <| Url.Builder.absolute [] [] ] [ text "חזרה לדף הראשי" ] ] ]
 
 
 main : Program () Model Msg
