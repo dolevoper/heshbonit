@@ -3,23 +3,12 @@ module Main exposing (main)
 import Browser
 import Browser.Navigation exposing (Key, load, pushUrl)
 import Date exposing (Date, date, toDataString, toShortString)
-import Dict exposing (Dict)
 import Html exposing (Html, a, article, br, h1, h2, h3, h4, main_, p, span, table, td, text, time, tr)
 import Html.Attributes exposing (datetime, href)
+import Invoices as Invoices exposing (InvoiceData, Invoices)
 import Route
 import Url exposing (Url)
 import Url.Builder
-
-
-type alias InvoiceData =
-    { date : Result String Date
-    , amount : Float
-    , description : String
-    }
-
-
-type alias Invoices =
-    Dict Int InvoiceData
 
 
 type Model
@@ -52,20 +41,17 @@ init : () -> Url -> Key -> ( Model, Cmd Msg )
 init _ url key =
     let
         invoices =
-            Dict.fromList
-                [ ( 40001
-                  , { date = date { day = 25, month = 9, year = 2022 }
+            Invoices.empty Invoices.defaultBase
+                |> Invoices.create
+                    { date = date { day = 25, month = 9, year = 2022 }
                     , amount = 150
                     , description = "שיעור"
                     }
-                  )
-                , ( 40002
-                  , { date = date { day = 25, month = 9, year = 2022 }
+                |> Invoices.create
+                    { date = date { day = 25, month = 9, year = 2022 }
                     , amount = 150
                     , description = "שיעור"
                     }
-                  )
-                ]
     in
     ( fromUrl key invoices url
     , Cmd.none
@@ -112,11 +98,6 @@ update msg model =
             )
 
 
-
--- _ ->
---     ( model, Cmd.none )
-
-
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.none
@@ -136,7 +117,7 @@ viewMain model =
             viewHome invoices
 
         Invoice _ invoices num ->
-            viewInvoice num <| Dict.get num invoices
+            viewInvoice num <| Invoices.get num invoices
 
         NotFound _ _ ->
             viewNotFound "הדף שחיפשת לא קיים."
@@ -145,8 +126,8 @@ viewMain model =
 viewHome : Invoices -> Html Msg
 viewHome invoices =
     let
-        invoiceRow : Int -> InvoiceData -> List (Html Msg) -> List (Html Msg)
-        invoiceRow num invoice res =
+        invoiceRow : Int -> InvoiceData -> Html Msg
+        invoiceRow num invoice =
             tr []
                 [ td [] [ "#" ++ String.fromInt num |> text ]
                 , td [] [ viewDate invoice.date ]
@@ -154,11 +135,10 @@ viewHome invoices =
                 , td [] [ String.fromFloat invoice.amount ++ "₪" |> text ]
                 , td [] [ a [ href <| Url.Builder.absolute [ "invoice", String.fromInt num ] [] ] [ text "👁️\u{200D}🗨️" ] ]
                 ]
-                :: res
     in
     main_ []
         [ h1 [] [ text "קבלות" ]
-        , table [] <| Dict.foldl invoiceRow [] invoices
+        , table [] <| Invoices.toList invoiceRow invoices
         ]
 
 
