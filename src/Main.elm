@@ -5,7 +5,8 @@ import Browser.Navigation exposing (Key, load, pushUrl)
 import Date exposing (Date, date, toDataString, toShortString)
 import Html exposing (Html, a, article, br, h1, h2, h3, h4, main_, p, span, table, td, text, time, tr)
 import Html.Attributes exposing (datetime, href)
-import Invoices as Invoices exposing (InvoiceData, Invoices)
+import Invoices as Invoices exposing (InvoiceData, Invoices, invoicesReceiver)
+import Json.Decode
 import Route
 import Url exposing (Url)
 import Url.Builder
@@ -20,6 +21,7 @@ type Model
 type Msg
     = LinkClicked Browser.UrlRequest
     | UrlChanged Url
+    | ReceivedInvoices Json.Decode.Value
 
 
 fromUrl : Key -> Invoices -> Url -> Model
@@ -39,21 +41,7 @@ fromUrl navKey invoices url =
 
 init : () -> Url -> Key -> ( Model, Cmd Msg )
 init _ url key =
-    let
-        invoices =
-            Invoices.empty Invoices.defaultBase
-                |> Invoices.create
-                    { date = date { day = 25, month = 9, year = 2022 }
-                    , amount = 150
-                    , description = "שיעור"
-                    }
-                |> Invoices.create
-                    { date = date { day = 25, month = 9, year = 2022 }
-                    , amount = 150
-                    , description = "שיעור"
-                    }
-    in
-    ( fromUrl key invoices url
+    ( fromUrl key (Invoices.empty Invoices.defaultBase) url
     , Cmd.none
     )
 
@@ -97,10 +85,16 @@ update msg model =
             , Cmd.none
             )
 
+        ( Home k i, ReceivedInvoices v ) ->
+            ( Home k (Result.withDefault i <| Invoices.fromJson v), Cmd.none )
+
+        _ ->
+            ( model, Cmd.none )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.none
+    invoicesReceiver ReceivedInvoices
 
 
 view : Model -> Browser.Document Msg
@@ -165,7 +159,7 @@ viewDate rd =
         Ok d ->
             time [ toDataString d |> datetime ] [ toShortString d |> text ]
 
-        Err _ ->
+        Err str ->
             span [] [ text "INVALID DATE" ]
 
 

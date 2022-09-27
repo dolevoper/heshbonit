@@ -18,7 +18,9 @@
             node: document.getElementById("app")
         });
 
-        getDocs(collection(db, "invoices")).then((snapshot) => snapshot.forEach((invoice) => console.log(invoice.id, invoice.data())));
+        getDocs(collection(db, "invoices")).then((snapshot) => {
+            app.ports.invoicesReceiver.send(snapshot.docs.map((invoice) => ({ id: invoice.id, ...invoice.data() })));
+        });
     </script>
 </body>
 </html>
