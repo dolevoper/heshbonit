@@ -4,10 +4,9 @@ import Browser
 import Browser.Navigation exposing (Key, load, pushUrl)
 import Date exposing (Date, date, toDataString, toShortString)
 import Dict exposing (Dict)
-import Html exposing (Html, a, article, br, button, h1, h2, h3, h4, main_, p, span, table, td, text, time, tr)
+import Html exposing (Html, a, article, br, h1, h2, h3, h4, main_, p, span, table, td, text, time, tr)
 import Html.Attributes exposing (datetime, href)
-import Html.Events exposing (onClick)
-import Route as Route exposing (Route)
+import Route
 import Url exposing (Url)
 import Url.Builder
 
