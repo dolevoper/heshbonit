@@ -1,5 +1,7 @@
 module Date exposing (Date, date, fromDataString, toDataString, toShortString)
 
+import MaybeList
+
 
 type alias DateData =
     { day : Int, month : Int, year : Int }
@@ -77,10 +79,6 @@ date d =
 fromDataString : String -> Result String Date
 fromDataString str =
     let
-        transform : List (Maybe a) -> Maybe (List a)
-        transform =
-            List.foldr (\a b -> Maybe.andThen (\c -> Maybe.map ((::) c) b) a) (Just [])
-
         parse : Maybe (List Int) -> Result String Date
         parse l =
             case l of
@@ -93,7 +91,7 @@ fromDataString str =
                 Nothing ->
                     Err "All parts should be integers"
     in
-    str |> String.split "-" |> List.map String.toInt |> transform |> parse
+    str |> String.split "-" |> List.map String.toInt |> MaybeList.fromListMaybe |> parse
 
 
 toShortString : Date -> String

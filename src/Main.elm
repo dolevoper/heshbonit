@@ -14,6 +14,8 @@ import Url.Builder
 
 
 port signOut : () -> Cmd msg
+
+
 port firebaseError : (String -> msg) -> Sub msg
 
 
@@ -125,7 +127,6 @@ update msg model =
         ( _, SignOut ) ->
             ( model, signOut () )
 
-        
         ( _, FirebaseError err ) ->
             ( Error navKey err, Cmd.none )
 
@@ -184,11 +185,14 @@ viewHome invoices =
     in
     main_ []
         [ h2 [] [ text "קבלות" ]
-        , case invoices of
-            Just i ->
+        , case ( invoices, Maybe.map Invoices.isEmpty invoices ) of
+            ( Just _, Just True ) ->
+                p [] [ text "לא נוצרו קבלות עדיין." ]
+
+            ( Just i, _ ) ->
                 table [] <| Invoices.toList invoiceRow i
 
-            Nothing ->
+            ( Nothing, _ ) ->
                 p [] [ text "טוען..." ]
         ]
 

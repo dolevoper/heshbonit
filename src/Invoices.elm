@@ -1,7 +1,9 @@
-port module Invoices exposing (InvoiceData, Invoices, create, defaultBase, empty, fromJson, get, invoicesReceiver, toList)
+port module Invoices exposing (InvoiceData, Invoices, create, defaultBase, empty, fromJson, get, invoicesReceiver, isEmpty, toList)
 
 import Date exposing (Date)
 import Json.Decode as Json
+import MaybeList
+import String exposing (fromList)
 
 
 port invoicesReceiver : (Json.Value -> msg) -> Sub msg
@@ -26,6 +28,16 @@ defaultBase =
 empty : Int -> Invoices
 empty b =
     Invoices b []
+
+
+isEmpty : Invoices -> Bool
+isEmpty i =
+    case i of
+        Invoices _ [] ->
+            True
+
+        _ ->
+            False
 
 
 create : InvoiceData -> Invoices -> Invoices
@@ -72,6 +84,10 @@ type alias ServerInvoice =
     }
 
 
+type alias ProcesedServerInvoice =
+    { id : Int, date : Result String Date, description : String, amount : Float }
+
+
 decoder : Json.Decoder (List ServerInvoice)
 decoder =
     Json.list <|
@@ -84,10 +100,36 @@ decoder =
 
 fromJson : Json.Value -> Result String Invoices
 fromJson v =
-    -- TODO: add validation
+    let
+        postProcessJson : ServerInvoice -> Maybe ProcesedServerInvoice
+        postProcessJson i =
+            String.toInt i.id |> Maybe.map (\a -> { id = a, date = Date.fromDataString i.date, description = i.description, amount = i.amount })
+
+        foo : ProcesedServerInvoice -> ( Int, Result String Invoices ) -> ( Int, Result String Invoices )
+        foo i ( prevId, res ) =
+            if i.id /= prevId + 1 then
+                ( i.id, Err "נמצאו מזהי קבלות לא עוקבים" )
+
+            else
+                ( i.id, Result.map (create { date = i.date, description = i.description, amount = i.amount }) res )
+
+        fromList : List ProcesedServerInvoice -> Result String Invoices
+        fromList l =
+            case List.head l of
+                Nothing ->
+                    Ok <| empty defaultBase
+
+                Just { id } ->
+                    List.foldl foo ( id - 1, Ok <| empty id ) l |> Tuple.second
+    in
     case Json.decodeValue decoder v of
         Err err ->
             Err (Json.errorToString err)
 
         Ok l ->
-            l |> List.map (\a -> { date = Date.fromDataString a.date, description = a.description, amount = a.amount }) |> Invoices defaultBase |> Ok
+            case l |> List.map postProcessJson |> MaybeList.fromListMaybe of
+                Nothing ->
+                    Err "חוסר תאימות במזהי קבלות"
+
+                Just ppl ->
+                    fromList ppl
