@@ -60,7 +60,7 @@ view invoices model =
                 ]
             , label []
                 [ span [] [ text "סה\"כ" ]
-                , input [ required True, attribute "inputmode" "numeric", pattern "\\d*", value model.amount, onInput Amount ] []
+                , input [ required True, attribute "inputmode" "numeric", pattern "(\\d+\\.)?\\d", value model.amount, onInput Amount ] []
                 ]
             , label []
                 [ span [] [ text "תאריך" ]
