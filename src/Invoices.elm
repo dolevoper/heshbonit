@@ -18,6 +18,7 @@ type Invoices
     = Invoices Int (List InvoiceData)
 
 
+defaultBase : Int
 defaultBase =
     40001
 

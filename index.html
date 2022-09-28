@@ -20,10 +20,13 @@
 
         app.ports.signOut.subscribe(signOut);
 
-        // TODO: handle error
-        getDocs(invoicesCollection).then((snapshot) => {
-            app.ports.invoicesReceiver.send(snapshot.docs.map((invoice) => ({ id: invoice.id, ...invoice.data() })));
-        });
+        getDocs(invoicesCollection)
+            .then((snapshot) => {
+                app.ports.invoicesReceiver.send(snapshot.docs.map((invoice) => ({ id: invoice.id, ...invoice.data() })));
+            })
+            .catch((err) => {
+                app.ports.firebaseError.send(err.toString());
+            });
     </script>
 </body>
 </html>

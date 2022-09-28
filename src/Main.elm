@@ -14,6 +14,7 @@ import Url.Builder
 
 
 port signOut : () -> Cmd msg
+port firebaseError : (String -> msg) -> Sub msg
 
 
 type Model
@@ -28,6 +29,7 @@ type Msg
     | UrlChanged Url
     | ReceivedInvoices Json.Decode.Value
     | SignOut
+    | FirebaseError String
 
 
 fromUrl : Key -> Maybe Invoices -> Url -> Model
@@ -123,10 +125,17 @@ update msg model =
         ( _, SignOut ) ->
             ( model, signOut () )
 
+        
+        ( _, FirebaseError err ) ->
+            ( Error navKey err, Cmd.none )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    invoicesReceiver ReceivedInvoices
+    Sub.batch
+        [ invoicesReceiver ReceivedInvoices
+        , firebaseError FirebaseError
+        ]
 
 
 view : Model -> Browser.Document Msg
