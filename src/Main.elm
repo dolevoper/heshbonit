@@ -8,6 +8,7 @@ import Html.Attributes exposing (datetime, href)
 import Html.Events exposing (onClick)
 import Invoices as Invoices exposing (InvoiceData, Invoices, invoicesReceiver)
 import Json.Decode
+import Pages.CreateInvoice
 import Route
 import Url exposing (Url)
 import Url.Builder
@@ -22,6 +23,7 @@ port firebaseError : (String -> msg) -> Sub msg
 type Model
     = Home Key (Maybe Invoices)
     | Invoice Key (Maybe Invoices) Int
+    | CreateInvoice Key (Maybe Invoices) Pages.CreateInvoice.Model
     | NotFound Key (Maybe Invoices)
     | Error Key String
 
@@ -32,6 +34,8 @@ type Msg
     | ReceivedInvoices Json.Decode.Value
     | SignOut
     | FirebaseError String
+    | NewInvoice InvoiceData
+    | CreateInvoiceMsg Pages.CreateInvoice.Msg
 
 
 fromUrl : Key -> Maybe Invoices -> Url -> Model
@@ -47,6 +51,9 @@ fromUrl navKey invoices url =
 
                 Route.Invoice num ->
                     Invoice navKey invoices num
+
+                Route.CreateInvoice ->
+                    CreateInvoice navKey invoices <| Pages.CreateInvoice.init
 
 
 init : () -> Url -> Key -> ( Model, Cmd Msg )
@@ -67,6 +74,9 @@ update msg model =
                 Invoice key _ _ ->
                     key
 
+                CreateInvoice key _ _ ->
+                    key
+
                 NotFound key _ ->
                     key
 
@@ -79,6 +89,9 @@ update msg model =
                     i
 
                 Invoice _ i _ ->
+                    i
+
+                CreateInvoice _ i _ ->
                     i
 
                 NotFound _ i ->
@@ -95,6 +108,9 @@ update msg model =
 
                 Invoice k _ n ->
                     Invoice k i n
+
+                CreateInvoice k _ f ->
+                    CreateInvoice k i f
 
                 NotFound k _ ->
                     NotFound k i
@@ -130,6 +146,19 @@ update msg model =
         ( _, FirebaseError err ) ->
             ( Error navKey err, Cmd.none )
 
+        ( CreateInvoice _ _ m, CreateInvoiceMsg msg_ ) ->
+            ( CreateInvoice navKey invoices <| Pages.CreateInvoice.update msg_ m, Cmd.none )
+
+        ( CreateInvoice _ _ _, NewInvoice m ) ->
+            ( setInvoices (Maybe.map (Invoices.create m) invoices) model , pushUrl navKey "/" )
+
+        ( _, CreateInvoiceMsg _ ) ->
+            ( model, Cmd.none )
+
+        ( _, NewInvoice _ ) ->
+            ( model, Cmd.none )
+
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -163,6 +192,9 @@ viewMain model =
         Invoice _ invoices num ->
             viewInvoice num invoices
 
+        CreateInvoice _ invoices m ->
+            Pages.CreateInvoice.view invoices m |> Html.map (Pages.CreateInvoice.mapMsg CreateInvoiceMsg NewInvoice)
+
         NotFound _ _ ->
             main_ [] <| viewNotFound "הדף שחיפשת לא קיים."
 
@@ -185,6 +217,7 @@ viewHome invoices =
     in
     main_ []
         [ h2 [] [ text "קבלות" ]
+        , a [ href <| Url.Builder.absolute [ "createInvoice" ] [] ] [ text "➕" ]
         , case ( invoices, Maybe.map Invoices.isEmpty invoices ) of
             ( Just _, Just True ) ->
                 p [] [ text "לא נוצרו קבלות עדיין." ]

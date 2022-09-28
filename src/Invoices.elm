@@ -1,4 +1,4 @@
-port module Invoices exposing (InvoiceData, Invoices, create, defaultBase, empty, fromJson, get, invoicesReceiver, isEmpty, toList)
+port module Invoices exposing (InvoiceData, Invoices, create, defaultBase, empty, fromJson, get, invoicesReceiver, isEmpty, nextInvoiceNum, toList)
 
 import Date exposing (Date)
 import Json.Decode as Json
@@ -52,6 +52,13 @@ base invoices =
     case invoices of
         Invoices b _ ->
             b
+
+
+nextInvoiceNum : Invoices -> Int
+nextInvoiceNum invoices =
+    case invoices of
+        Invoices b i ->
+            b + List.length i
 
 
 records : Invoices -> List InvoiceData
