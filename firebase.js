@@ -1,9 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.10.0/firebase-app.js";
 import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/9.10.0/firebase-firestore.js";
-import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/9.10.0/firebase-auth.js";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut as _signOut } from "https://www.gstatic.com/firebasejs/9.10.0/firebase-auth.js";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -17,19 +15,28 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
 
 const auth = getAuth();
-const authProvider  = new GoogleAuthProvider();
+const signOut = () => _signOut(auth).then(() => login({ prompt: "select_account" }));
 
-async function login() {
+const db = getFirestore(app);
+const invoicesCollection = collection(db, "invoices");
+
+export { app, invoicesCollection, getDocs, signOut };
+
+async function login(customParameters) {
     const res = await getRedirectResult(auth);
+    
+    if (!res) {
+        const authProvider  = new GoogleAuthProvider();
 
-    if (!res) await signInWithRedirect(auth, authProvider);
+        authProvider.setCustomParameters(customParameters)
+        
+        await signInWithRedirect(auth, authProvider);
+    }
 }
 
 onAuthStateChanged(auth, user => {
     !user && login();
 });
 
-export { app, db, collection, getDocs };

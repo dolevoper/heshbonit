@@ -83,6 +83,7 @@ decoder =
 
 fromJson : Json.Value -> Result String Invoices
 fromJson v =
+    -- TODO: add validation
     case Json.decodeValue decoder v of
         Err err ->
             Err (Json.errorToString err)

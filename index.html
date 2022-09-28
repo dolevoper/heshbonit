@@ -12,13 +12,16 @@
     <div id="app"></div>
     <script src="/app.js"></script>
     <script type="module">
-        import { db, getDocs, collection } from "/firebase.js";
+        import { getDocs, invoicesCollection, signOut } from "/firebase.js";
 
         const app = Elm.Main.init({
             node: document.getElementById("app")
         });
 
-        getDocs(collection(db, "invoices")).then((snapshot) => {
+        app.ports.signOut.subscribe(signOut);
+
+        // TODO: handle error
+        getDocs(invoicesCollection).then((snapshot) => {
             app.ports.invoicesReceiver.send(snapshot.docs.map((invoice) => ({ id: invoice.id, ...invoice.data() })));
         });
     </script>

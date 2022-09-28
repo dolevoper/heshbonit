@@ -1,15 +1,19 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 import Browser
 import Browser.Navigation exposing (Key, load, pushUrl)
-import Date exposing (Date, date, toDataString, toShortString)
-import Html exposing (Html, a, article, br, h1, h2, h3, h4, main_, p, span, table, td, text, time, tr)
+import Date exposing (Date, toDataString, toShortString)
+import Html exposing (Html, a, br, button, h1, h2, h3, h4, header, main_, p, span, table, td, text, time, tr)
 import Html.Attributes exposing (datetime, href)
+import Html.Events exposing (onClick)
 import Invoices as Invoices exposing (InvoiceData, Invoices, invoicesReceiver)
 import Json.Decode
 import Route
 import Url exposing (Url)
 import Url.Builder
+
+
+port signOut : () -> Cmd msg
 
 
 type Model
@@ -23,6 +27,7 @@ type Msg
     = LinkClicked Browser.UrlRequest
     | UrlChanged Url
     | ReceivedInvoices Json.Decode.Value
+    | SignOut
 
 
 fromUrl : Key -> Maybe Invoices -> Url -> Model
@@ -115,6 +120,9 @@ update msg model =
                 Ok i ->
                     ( setInvoices (Just i) model, Cmd.none )
 
+        ( _, SignOut ) ->
+            ( model, signOut () )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -124,8 +132,16 @@ subscriptions _ =
 view : Model -> Browser.Document Msg
 view model =
     { title = "חשבונית"
-    , body = [ viewMain model ]
+    , body = [ viewHeader, viewMain model ]
     }
+
+
+viewHeader : Html Msg
+viewHeader =
+    header []
+        [ h1 [] [ text "חשבונית" ]
+        , button [ onClick SignOut ] [ text "התנתק" ]
+        ]
 
 
 viewMain : Model -> Html Msg
@@ -158,7 +174,7 @@ viewHome invoices =
                 ]
     in
     main_ []
-        [ h1 [] [ text "קבלות" ]
+        [ h2 [] [ text "קבלות" ]
         , case invoices of
             Just i ->
                 table [] <| Invoices.toList invoiceRow i
@@ -175,9 +191,9 @@ viewInvoice num invoices =
             Maybe.andThen (Invoices.get num) invoices
     in
     main_ [] <|
-        [ h1 [] [ text "אדווה דולב", a [ href <| Url.Builder.absolute [] [] ] [ text "❌" ] ]
-        , h2 [] [ "עוסק פטור 201637691" |> text ]
-        , h3 [] [ "קבלה מס' " ++ String.fromInt num |> text ]
+        [ h2 [] [ text "אדווה דולב", a [ href <| Url.Builder.absolute [] [] ] [ text "❌" ] ]
+        , h3 [] [ "עוסק פטור 201637691" |> text ]
+        , h4 [] [ "קבלה מס' " ++ String.fromInt num |> text ]
         ]
             ++ (case ( invoices, maybeInvoice ) of
                     ( Nothing, _ ) ->
@@ -200,7 +216,7 @@ viewDate rd =
         Ok d ->
             time [ toDataString d |> datetime ] [ toShortString d |> text ]
 
-        Err str ->
+        Err _ ->
             span [] [ text "INVALID DATE" ]
 
 
