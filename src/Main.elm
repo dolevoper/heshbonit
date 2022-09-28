@@ -150,14 +150,21 @@ update msg model =
             ( CreateInvoice navKey invoices <| Pages.CreateInvoice.update msg_ m, Cmd.none )
 
         ( CreateInvoice _ _ _, NewInvoice m ) ->
-            ( setInvoices (Maybe.map (Invoices.create m) invoices) model , pushUrl navKey "/" )
+            case invoices of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just i ->
+                    Invoices.create m i
+                        |> Tuple.mapBoth
+                            (\ni -> setInvoices (Just ni) model)
+                            (\cmd -> Cmd.batch [ cmd, pushUrl navKey "/" ])
 
         ( _, CreateInvoiceMsg _ ) ->
             ( model, Cmd.none )
 
         ( _, NewInvoice _ ) ->
             ( model, Cmd.none )
-
 
 
 subscriptions : Model -> Sub Msg

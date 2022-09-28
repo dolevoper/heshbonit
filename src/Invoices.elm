@@ -9,6 +9,9 @@ import String exposing (fromList)
 port invoicesReceiver : (Json.Value -> msg) -> Sub msg
 
 
+port createInvoice : ServerInvoice -> Cmd msg
+
+
 type alias InvoiceData =
     { date : Result String Date
     , amount : Float
@@ -40,11 +43,18 @@ isEmpty i =
             False
 
 
-create : InvoiceData -> Invoices -> Invoices
+create : InvoiceData -> Invoices -> ( Invoices, Cmd msg )
 create invoice invoices =
     case invoices of
         Invoices b existingRecords ->
-            existingRecords ++ [ invoice ] |> Invoices b
+            ( existingRecords ++ [ invoice ] |> Invoices b
+            , createInvoice
+                { id = String.fromInt <| b + List.length existingRecords
+                , description = invoice.description
+                , date = Result.map Date.toDataString invoice.date |> Result.withDefault ""
+                , amount = invoice.amount
+                }
+            )
 
 
 base : Invoices -> Int
@@ -118,7 +128,7 @@ fromJson v =
                 ( i.id, Err "נמצאו מזהי קבלות לא עוקבים" )
 
             else
-                ( i.id, Result.map (create { date = i.date, description = i.description, amount = i.amount }) res )
+                ( i.id, Result.map (Tuple.first << create { date = i.date, description = i.description, amount = i.amount }) res )
 
         fromList : List ProcesedServerInvoice -> Result String Invoices
         fromList l =
