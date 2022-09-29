@@ -11,14 +11,6 @@
         "source": "**",
         "destination": "/index.html"
       }
-    ],
-    "headers": [
-      {
-        "source": "**/*.js",
-        "headers": [
-          { "key": "Content-Type", "value": "text/javascript" }
-        ]
-      }
     ]
   },
   "functions": {
