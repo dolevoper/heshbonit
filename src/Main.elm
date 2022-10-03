@@ -10,6 +10,8 @@ import Invoices as Invoices exposing (InvoiceData, Invoices, invoicesReceiver)
 import Json.Decode
 import Pages.CreateInvoice
 import Route
+import Task exposing (Task)
+import Time
 import Url exposing (Url)
 import Url.Builder
 
@@ -38,29 +40,34 @@ type Msg
     | CreateInvoiceMsg Pages.CreateInvoice.Msg
 
 
-fromUrl : Key -> Maybe Invoices -> Url -> Model
+handleCreateInvoiceMsg =
+    Pages.CreateInvoice.mapMsg CreateInvoiceMsg NewInvoice
+
+
+fromUrl : Key -> Maybe Invoices -> Url -> ( Model, Cmd Msg )
 fromUrl navKey invoices url =
     case Route.fromUrl url of
         Nothing ->
-            NotFound navKey invoices
+            ( NotFound navKey invoices, Cmd.none )
 
         Just route ->
             case route of
                 Route.Home ->
-                    Home navKey invoices
+                    ( Home navKey invoices, Cmd.none )
 
                 Route.Invoice num ->
-                    Invoice navKey invoices num
+                    ( Invoice navKey invoices num, Cmd.none )
 
                 Route.CreateInvoice ->
-                    CreateInvoice navKey invoices <| Pages.CreateInvoice.init
+                    Tuple.mapBoth
+                        (CreateInvoice navKey invoices)
+                        (Cmd.map <| handleCreateInvoiceMsg)
+                        Pages.CreateInvoice.init
 
 
 init : () -> Url -> Key -> ( Model, Cmd Msg )
 init _ url key =
-    ( fromUrl key Nothing url
-    , Cmd.none
-    )
+    fromUrl key Nothing url
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -128,9 +135,7 @@ update msg model =
                     ( model, load href )
 
         ( _, UrlChanged url ) ->
-            ( fromUrl navKey invoices url
-            , Cmd.none
-            )
+            fromUrl navKey invoices url
 
         ( _, ReceivedInvoices v ) ->
             case Invoices.fromJson v of
@@ -200,7 +205,7 @@ viewMain model =
             viewInvoice num invoices
 
         CreateInvoice _ invoices m ->
-            Pages.CreateInvoice.view invoices m |> Html.map (Pages.CreateInvoice.mapMsg CreateInvoiceMsg NewInvoice)
+            Pages.CreateInvoice.view invoices m |> Html.map handleCreateInvoiceMsg
 
         NotFound _ _ ->
             main_ [] <| viewNotFound "הדף שחיפשת לא קיים."
