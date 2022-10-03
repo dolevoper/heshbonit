@@ -14,6 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: cd functions
-      - run: npm ci && npm run build
-      - run: npm run deploy -- --token "${{ secrets.FIREBASE_TOKEN }}"
+      - name: Build
+        run: npm ci && npm run build
+        working-directory: ./functions
+      - name: Deploy
+        run: npm run deploy -- --token "${{ secrets.FIREBASE_TOKEN }}"
+        working-directory: ./functions
