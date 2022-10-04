@@ -23,7 +23,6 @@ const db = getFirestore(app);
 const invoicesCollection = collection(db, "invoices");
 
 const getCurrentUser = () => new Promise(resolve => {
-    console.log("hello");
     const unsubscribe = onAuthStateChanged(auth, user => {
         unsubscribe();
         resolve(user);

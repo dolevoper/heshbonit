@@ -34,8 +34,6 @@
             try {
                 const snapshot = await getDocs(invoicesCollection);
 
-                console.log(snapshot.docs);
-
                 app.ports.invoicesReceiver.send(snapshot.docs.map((invoice) => ({ id: invoice.id, ...invoice.data() })));
             } catch (err) {
                 app.ports.firebaseError.send(err.toString());
