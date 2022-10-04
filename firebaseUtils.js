@@ -22,16 +22,11 @@ const signOut = () => _signOut(auth).then(() => login({ prompt: "select_account"
 const db = getFirestore(app);
 const invoicesCollection = collection(db, "invoices");
 
-const getCurrentUser = () => new Promise(resolve => {
-    const unsubscribe = onAuthStateChanged(auth, user => {
-        unsubscribe();
-        resolve(user);
-    });
-});
+const uid = window.location.pathname.split("/")[1];
 
-const getInvoicesCollection = () => getCurrentUser().then(({ uid }) => collection(db, "users", uid, "invoices"));
+const invoices = uid && collection(db, "users", uid, "invoices");
 
-export { app, invoicesCollection, getDocs, signOut, doc, setDoc, getInvoicesCollection };
+export { app, invoicesCollection, getDocs, signOut, doc, setDoc, invoices };
 
 async function login(customParameters) {
     const res = await getRedirectResult(auth);
@@ -45,8 +40,13 @@ async function login(customParameters) {
     }
 }
 
-const unsubscribe = onAuthStateChanged(auth, user => {
+const unsubscribe = onAuthStateChanged(auth, async user => {
     unsubscribe();
-    !user && login();
+
+    if (!user) {
+        await login();
+    } else if (window.location.pathname === "/") {
+        window.location.assign(user.uid);
+    }
 });
 

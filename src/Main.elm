@@ -10,10 +10,7 @@ import Invoices as Invoices exposing (InvoiceData, Invoices, invoicesReceiver)
 import Json.Decode
 import Pages.CreateInvoice
 import Route
-import Task exposing (Task)
-import Time
 import Url exposing (Url)
-import Url.Builder
 
 
 port signOut : () -> Cmd msg
@@ -23,11 +20,11 @@ port firebaseError : (String -> msg) -> Sub msg
 
 
 type Model
-    = Home Key (Maybe Invoices)
-    | Invoice Key (Maybe Invoices) Int
-    | CreateInvoice Key (Maybe Invoices) Pages.CreateInvoice.Model
-    | NotFound Key (Maybe Invoices)
-    | Error Key String
+    = Home Key String (Maybe Invoices)
+    | Invoice Key String (Maybe Invoices) Int
+    | CreateInvoice Key String (Maybe Invoices) Pages.CreateInvoice.Model
+    | NotFound Key (Maybe String) (Maybe Invoices)
+    | Error Key String String
 
 
 type Msg
@@ -49,21 +46,21 @@ fromUrl : Key -> Maybe Invoices -> Url -> ( Model, Cmd Msg )
 fromUrl navKey invoices url =
     case Route.fromUrl url of
         Nothing ->
-            ( NotFound navKey invoices, Cmd.none )
+            ( NotFound navKey (Route.uid url) invoices, Cmd.none )
 
         Just route ->
             case route of
-                Route.Home ->
-                    ( Home navKey invoices, Cmd.none )
+                Route.Home uid ->
+                    ( Home navKey uid invoices, Cmd.none )
 
-                Route.Invoice num ->
-                    ( Invoice navKey invoices num, Cmd.none )
+                Route.Invoice uid num ->
+                    ( Invoice navKey uid invoices num, Cmd.none )
 
-                Route.CreateInvoice ->
+                Route.CreateInvoice uid ->
                     Tuple.mapBoth
-                        (CreateInvoice navKey invoices)
+                        (CreateInvoice navKey uid invoices)
                         (Cmd.map <| handleCreateInvoiceMsg)
-                        Pages.CreateInvoice.init
+                        (Pages.CreateInvoice.init uid)
 
 
 init : () -> Url -> Key -> ( Model, Cmd Msg )
@@ -76,54 +73,71 @@ update msg model =
     let
         navKey =
             case model of
-                Home key _ ->
+                Home key _ _ ->
                     key
 
-                Invoice key _ _ ->
+                Invoice key _ _ _ ->
                     key
 
-                CreateInvoice key _ _ ->
+                CreateInvoice key _ _ _ ->
                     key
 
-                NotFound key _ ->
+                NotFound key _ _ ->
                     key
 
-                Error key _ ->
+                Error key _ _ ->
                     key
+
+        uid =
+            case model of
+                Home _ u _ ->
+                    u
+
+                Invoice _ u _ _ ->
+                    u
+
+                CreateInvoice _ u _ _ ->
+                    u
+
+                NotFound _ u _ ->
+                    Maybe.withDefault "" u
+
+                Error _ u _ ->
+                    u
 
         invoices =
             case model of
-                Home _ i ->
+                Home _ _ i ->
                     i
 
-                Invoice _ i _ ->
+                Invoice _ _ i _ ->
                     i
 
-                CreateInvoice _ i _ ->
+                CreateInvoice _ _ i _ ->
                     i
 
-                NotFound _ i ->
+                NotFound _ _ i ->
                     i
 
-                Error _ _ ->
+                Error _ _ _ ->
                     Nothing
 
         setInvoices : Maybe Invoices -> Model -> Model
         setInvoices i m =
             case m of
-                Home k _ ->
-                    Home k i
+                Home k u _ ->
+                    Home k u i
 
-                Invoice k _ n ->
-                    Invoice k i n
+                Invoice k u _ n ->
+                    Invoice k u i n
 
-                CreateInvoice k _ f ->
-                    CreateInvoice k i f
+                CreateInvoice k u _ f ->
+                    CreateInvoice k u i f
 
-                NotFound k _ ->
-                    NotFound k i
+                NotFound k u _ ->
+                    NotFound k u i
 
-                Error _ _ ->
+                Error _ _ _ ->
                     m
     in
     case ( model, msg ) of
@@ -141,7 +155,7 @@ update msg model =
         ( _, ReceivedInvoices v ) ->
             case Invoices.fromJson v of
                 Err str ->
-                    ( Error navKey str, Cmd.none )
+                    ( Error navKey uid str, Cmd.none )
 
                 Ok i ->
                     ( setInvoices (Just i) model, Cmd.none )
@@ -150,12 +164,12 @@ update msg model =
             ( model, signOut () )
 
         ( _, FirebaseError err ) ->
-            ( Error navKey err, Cmd.none )
+            ( Error navKey uid err, Cmd.none )
 
-        ( CreateInvoice _ _ m, CreateInvoiceMsg msg_ ) ->
-            ( CreateInvoice navKey invoices <| Pages.CreateInvoice.update msg_ m, Cmd.none )
+        ( CreateInvoice _ _ _ m, CreateInvoiceMsg msg_ ) ->
+            ( CreateInvoice navKey uid invoices <| Pages.CreateInvoice.update msg_ m, Cmd.none )
 
-        ( CreateInvoice _ _ _, NewInvoice m ) ->
+        ( CreateInvoice _ _ _ _, NewInvoice m ) ->
             case invoices of
                 Nothing ->
                     ( model, Cmd.none )
@@ -164,7 +178,7 @@ update msg model =
                     Invoices.create m i
                         |> Tuple.mapBoth
                             (\ni -> setInvoices (Just ni) model)
-                            (\cmd -> Cmd.batch [ cmd, pushUrl navKey "/" ])
+                            (\cmd -> Cmd.batch [ cmd, pushUrl navKey <| Route.home uid ])
 
         ( _, CreateInvoiceMsg _ ) ->
             ( model, Cmd.none )
@@ -199,24 +213,24 @@ viewHeader =
 viewMain : Model -> Html Msg
 viewMain model =
     case model of
-        Home _ invoices ->
-            viewHome invoices
+        Home _ uid invoices ->
+            viewHome uid invoices
 
-        Invoice _ invoices num ->
-            viewInvoice num invoices
+        Invoice _ uid invoices num ->
+            viewInvoice uid num invoices
 
-        CreateInvoice _ invoices m ->
+        CreateInvoice _ _ invoices m ->
             Pages.CreateInvoice.view invoices m |> Html.map handleCreateInvoiceMsg
 
-        NotFound _ _ ->
-            main_ [] <| viewNotFound "הדף שחיפשת לא קיים."
+        NotFound _ uid _ ->
+            main_ [] <| viewNotFound uid "הדף שחיפשת לא קיים."
 
-        Error _ str ->
+        Error _ _ str ->
             main_ [] [ p [] [ text str ] ]
 
 
-viewHome : Maybe Invoices -> Html Msg
-viewHome invoices =
+viewHome : String -> Maybe Invoices -> Html Msg
+viewHome uid invoices =
     let
         invoiceRow : Int -> InvoiceData -> Html Msg
         invoiceRow num invoice =
@@ -225,12 +239,12 @@ viewHome invoices =
                 , td [] [ viewDate invoice.date ]
                 , td [] [ text invoice.description ]
                 , td [] [ String.fromFloat invoice.amount ++ "₪" |> text ]
-                , td [] [ a [ href <| Url.Builder.absolute [ "invoice", String.fromInt num ] [] ] [ text "👁️\u{200D}🗨️" ] ]
+                , td [] [ a [ href <| Route.invoice uid num ] [ text "👁️\u{200D}🗨️" ] ]
                 ]
     in
     main_ []
         [ h2 [] [ text "קבלות" ]
-        , a [ href <| Url.Builder.absolute [ "createInvoice" ] [] ] [ text "➕" ]
+        , a [ href <| Route.createInvoice uid ] [ text "➕" ]
         , case ( invoices, Maybe.map Invoices.isEmpty invoices ) of
             ( Just _, Just True ) ->
                 p [] [ text "לא נוצרו קבלות עדיין." ]
@@ -243,14 +257,14 @@ viewHome invoices =
         ]
 
 
-viewInvoice : Int -> Maybe Invoices -> Html Msg
-viewInvoice num invoices =
+viewInvoice : String -> Int -> Maybe Invoices -> Html Msg
+viewInvoice uid num invoices =
     let
         maybeInvoice =
             Maybe.andThen (Invoices.get num) invoices
     in
     main_ [] <|
-        [ h2 [] [ text "אדווה דולב", a [ href <| Url.Builder.absolute [] [] ] [ text "❌" ] ]
+        [ h2 [] [ text "אדווה דולב", a [ href <| Route.home uid ] [ text "❌" ] ]
         , h3 [] [ "עוסק פטור 201637691" |> text ]
         , h4 [] [ "קבלה מס' " ++ String.fromInt num |> text ]
         ]
@@ -259,7 +273,7 @@ viewInvoice num invoices =
                         [ p [] [ text "טוען..." ] ]
 
                     ( Just _, Nothing ) ->
-                        viewNotFound ("אופס, לא מצאתי חשבונית עם מספר " ++ String.fromInt num)
+                        viewNotFound (Just uid) ("אופס, לא מצאתי חשבונית עם מספר " ++ String.fromInt num)
 
                     ( _, Just invoice ) ->
                         [ p [] [ h4 [] [ text "עבור" ], text invoice.description ]
@@ -279,9 +293,9 @@ viewDate rd =
             span [] [ text "INVALID DATE" ]
 
 
-viewNotFound : String -> List (Html Msg)
-viewNotFound msg =
-    [ p [] [ text msg, br [] [], a [ href <| Url.Builder.absolute [] [] ] [ text "חזרה לדף הראשי" ] ] ]
+viewNotFound : Maybe String -> String -> List (Html Msg)
+viewNotFound uid msg =
+    [ p [] [ text msg, br [] [], a [ href <| Route.home <| Maybe.withDefault "" uid ] [ text "חזרה לדף הראשי" ] ] ]
 
 
 main : Program () Model Msg

@@ -5,13 +5,14 @@ import Html exposing (Html, a, button, form, h4, input, label, main_, span, text
 import Html.Attributes exposing (attribute, href, pattern, required, type_, value)
 import Html.Events exposing (onInput, onSubmit)
 import Invoices exposing (InvoiceData, Invoices)
+import Route
 import Task
 import Time exposing (Posix, Zone)
-import Url.Builder
 
 
 type alias Model =
-    { description : String
+    { uid : String
+    , description : String
     , amount : String
     , date : String
     }
@@ -24,8 +25,8 @@ type Msg
     | Submit Model
 
 
-init : ( Model, Cmd Msg )
-init =
+init : String -> ( Model, Cmd Msg )
+init uid =
     let
         toDate : Zone -> Posix -> String
         toDate zone posix =
@@ -75,7 +76,7 @@ init =
                 Time.Dec ->
                     12
     in
-    ( Model "" "" "", Task.perform Date <| Task.map2 toDate Time.here Time.now )
+    ( Model uid "" "" "", Task.perform Date <| Task.map2 toDate Time.here Time.now )
 
 
 update : Msg -> Model -> Model
@@ -102,7 +103,7 @@ view invoices model =
             invoices |> Maybe.map (Invoices.nextInvoiceNum >> String.fromInt) |> Maybe.withDefault "טוען..."
     in
     main_ []
-        [ a [ href <| Url.Builder.absolute [] [] ] [ text "❌" ]
+        [ a [ href <| Route.home model.uid ] [ text "❌" ]
         , h4 [] [ text ("קבלה מס' " ++ invoiceNum) ]
         , form [ onSubmit <| Submit model ]
             [ label []

@@ -12,7 +12,7 @@
     <div id="app"></div>
     <script src="/app.js"></script>
     <script type="module">
-        import { getDocs, signOut, doc, setDoc, getInvoicesCollection } from "/firebaseUtils.js";
+        import { getDocs, signOut, doc, setDoc, invoices } from "/firebaseUtils.js";
 
         const app = Elm.Main.init({
             node: document.getElementById("app")
@@ -20,27 +20,23 @@
 
         app.ports.signOut.subscribe(signOut);
 
-        async function init() {
-            const invoicesCollection = await getInvoicesCollection();
-
+        if (invoices) {
             app.ports.createInvoice.subscribe(async ({ id, ...data }) => {
                 try {
-                    await setDoc(doc(invoicesCollection, id), data);
+                    await setDoc(doc(invoices, id), data);
                 } catch (err) {
                     app.ports.firebaseError.send(err.toString());
                 }
             });
 
             try {
-                const snapshot = await getDocs(invoicesCollection);
+                const snapshot = await getDocs(invoices);
 
                 app.ports.invoicesReceiver.send(snapshot.docs.map((invoice) => ({ id: invoice.id, ...invoice.data() })));
             } catch (err) {
                 app.ports.firebaseError.send(err.toString());
             }
         }
-
-        init();
     </script>
 </body>
 </html>
