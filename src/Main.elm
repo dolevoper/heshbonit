@@ -16,6 +16,9 @@ import Url exposing (Url)
 port signOut : () -> Cmd msg
 
 
+port downloadInvoice : Int -> Cmd msg
+
+
 port firebaseError : (String -> msg) -> Sub msg
 
 
@@ -35,6 +38,7 @@ type Msg
     | FirebaseError String
     | NewInvoice InvoiceData
     | CreateInvoiceMsg Pages.CreateInvoice.Msg
+    | DownloadInvoice
 
 
 handleCreateInvoiceMsg : Pages.CreateInvoice.Msg -> Msg
@@ -180,10 +184,16 @@ update msg model =
                             (\ni -> setInvoices (Just ni) model)
                             (\cmd -> Cmd.batch [ cmd, pushUrl navKey <| Route.home uid ])
 
+        ( Invoice _ _ _ num, DownloadInvoice ) ->
+            ( model, downloadInvoice num )
+
         ( _, CreateInvoiceMsg _ ) ->
             ( model, Cmd.none )
 
         ( _, NewInvoice _ ) ->
+            ( model, Cmd.none )
+
+        ( _, DownloadInvoice ) ->
             ( model, Cmd.none )
 
 
@@ -279,6 +289,7 @@ viewInvoice uid num invoices =
                         [ p [] [ h4 [] [ text "עבור" ], text invoice.description ]
                         , p [] [ "סה\"כ: " ++ String.fromFloat invoice.amount ++ "₪" |> text ]
                         , viewDate invoice.date
+                        , button [ onClick DownloadInvoice ] [ text "⬇️" ]
                         ]
                )
 

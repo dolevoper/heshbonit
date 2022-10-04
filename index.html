@@ -12,13 +12,21 @@
     <div id="app"></div>
     <script src="/app.js"></script>
     <script type="module">
-        import { getDocs, signOut, doc, setDoc, invoices } from "/firebaseUtils.js";
+        import { getDocs, signOut, doc, setDoc, invoices, downloadInvoice } from "/firebaseUtils.js";
 
         const app = Elm.Main.init({
             node: document.getElementById("app")
         });
 
         app.ports.signOut.subscribe(signOut);
+
+        app.ports.downloadInvoice.subscribe(async invoiceId => {
+            try {
+                await downloadInvoice(invoiceId);
+            } catch (err) {
+                app.ports.firebaseError.send(err.toString());
+            }
+        });
 
         if (invoices) {
             app.ports.createInvoice.subscribe(async ({ id, ...data }) => {
