@@ -12,7 +12,7 @@
     <div id="app"></div>
     <script src="/app.js"></script>
     <script type="module">
-        import { getDocs, invoicesCollection, signOut, doc, setDoc } from "/firebaseUtils.js";
+        import { getDocs, signOut, doc, setDoc, getInvoicesCollection } from "/firebaseUtils.js";
 
         const app = Elm.Main.init({
             node: document.getElementById("app")
@@ -20,21 +20,29 @@
 
         app.ports.signOut.subscribe(signOut);
 
-        app.ports.createInvoice.subscribe(async ({ id, ...data }) => {
+        async function init() {
+            const invoicesCollection = await getInvoicesCollection();
+
+            app.ports.createInvoice.subscribe(async ({ id, ...data }) => {
+                try {
+                    await setDoc(doc(invoicesCollection, id), data);
+                } catch (err) {
+                    app.ports.firebaseError.send(err.toString());
+                }
+            });
+
             try {
-                await setDoc(doc(invoicesCollection, id), data);
+                const snapshot = await getDocs(invoicesCollection);
+
+                console.log(snapshot.docs);
+
+                app.ports.invoicesReceiver.send(snapshot.docs.map((invoice) => ({ id: invoice.id, ...invoice.data() })));
             } catch (err) {
                 app.ports.firebaseError.send(err.toString());
             }
-        });
+        }
 
-        getDocs(invoicesCollection)
-            .then((snapshot) => {
-                app.ports.invoicesReceiver.send(snapshot.docs.map((invoice) => ({ id: invoice.id, ...invoice.data() })));
-            })
-            .catch((err) => {
-                app.ports.firebaseError.send(err.toString());
-            });
+        init();
     </script>
 </body>
 </html>

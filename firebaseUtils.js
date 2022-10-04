@@ -22,7 +22,17 @@ const signOut = () => _signOut(auth).then(() => login({ prompt: "select_account"
 const db = getFirestore(app);
 const invoicesCollection = collection(db, "invoices");
 
-export { app, invoicesCollection, getDocs, signOut, doc, setDoc };
+const getCurrentUser = () => new Promise(resolve => {
+    console.log("hello");
+    const unsubscribe = onAuthStateChanged(auth, user => {
+        unsubscribe();
+        resolve(user);
+    });
+});
+
+const getInvoicesCollection = () => getCurrentUser().then(({ uid }) => collection(db, "users", uid, "invoices"));
+
+export { app, invoicesCollection, getDocs, signOut, doc, setDoc, getInvoicesCollection };
 
 async function login(customParameters) {
     const res = await getRedirectResult(auth);
@@ -36,7 +46,8 @@ async function login(customParameters) {
     }
 }
 
-onAuthStateChanged(auth, user => {
+const unsubscribe = onAuthStateChanged(auth, user => {
+    unsubscribe();
     !user && login();
 });
 

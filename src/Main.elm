@@ -40,6 +40,7 @@ type Msg
     | CreateInvoiceMsg Pages.CreateInvoice.Msg
 
 
+handleCreateInvoiceMsg : Pages.CreateInvoice.Msg -> Msg
 handleCreateInvoiceMsg =
     Pages.CreateInvoice.mapMsg CreateInvoiceMsg NewInvoice
 
