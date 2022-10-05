@@ -1,4 +1,4 @@
-port module Invoices exposing (InvoiceData, Invoices, create, defaultBase, empty, fromJson, get, invoicesReceiver, isEmpty, nextInvoiceNum, toList)
+port module Invoices exposing (InvoiceData, Invoices, create, defaultBase, empty, fromJson, get, invoicesReceiver, isEmpty, nextInvoiceNum, registerInvoices, toList)
 
 import Date exposing (Date)
 import Json.Decode as Json
@@ -7,6 +7,9 @@ import String exposing (fromList)
 
 
 port invoicesReceiver : (Json.Value -> msg) -> Sub msg
+
+
+port registerInvoices : String -> Cmd msg
 
 
 port createInvoice : ServerInvoice -> Cmd msg

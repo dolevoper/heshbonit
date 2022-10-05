@@ -48,6 +48,25 @@ handleCreateInvoiceMsg =
 
 fromUrl : Key -> Maybe Invoices -> Url -> ( Model, Cmd Msg )
 fromUrl navKey invoices url =
+    let
+        buildCommands : String -> List (Cmd Msg) -> Cmd Msg
+        buildCommands uid extraCommands =
+            case ( extraCommands, invoices ) of
+                ( [], Nothing ) ->
+                    Invoices.registerInvoices uid
+
+                ( _, Nothing ) ->
+                    Cmd.batch <| Invoices.registerInvoices uid :: extraCommands
+
+                ( [], _ ) ->
+                    Cmd.none
+
+                ( [ cmd ], _ ) ->
+                    cmd
+
+                ( _, _ ) ->
+                    Cmd.batch extraCommands
+    in
     case Route.fromUrl url of
         Nothing ->
             ( NotFound navKey (Route.uid url) invoices, Cmd.none )
@@ -55,15 +74,15 @@ fromUrl navKey invoices url =
         Just route ->
             case route of
                 Route.Home uid ->
-                    ( Home navKey uid invoices, Cmd.none )
+                    ( Home navKey uid invoices, buildCommands uid [] )
 
                 Route.Invoice uid num ->
-                    ( Invoice navKey uid invoices num, Cmd.none )
+                    ( Invoice navKey uid invoices num, buildCommands uid [] )
 
                 Route.CreateInvoice uid ->
                     Tuple.mapBoth
                         (CreateInvoice navKey uid invoices)
-                        (Cmd.map <| handleCreateInvoiceMsg)
+                        (Cmd.map handleCreateInvoiceMsg >> List.singleton >> buildCommands uid)
                         (Pages.CreateInvoice.init uid)
 
 

@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.10.0/firebase-app.js";
-import { getFirestore, collection, doc, getDocs, setDoc } from "https://www.gstatic.com/firebasejs/9.10.0/firebase-firestore.js";
+import { getFirestore, collection, doc, getDocs, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.10.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut as _signOut } from "https://www.gstatic.com/firebasejs/9.10.0/firebase-auth.js";
 import { getStorage, ref, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.10.0/firebase-storage.js";
 
@@ -22,11 +22,11 @@ const auth = getAuth();
 const signOut = () => _signOut(auth).then(() => login({ prompt: "select_account" }));
 
 const db = getFirestore(app);
-const invoices = uid && collection(db, "users", uid, "invoices");
+const invoicesCollection = uid => collection(db, "users", uid, "invoices");
 
 const storage = getStorage(app, "gs://heshbonit-invoices");
 
-export { app, getDocs, signOut, doc, setDoc, invoices, downloadInvoice };
+export { app, getDocs, signOut, doc, setDoc, invoicesCollection, onSnapshot, downloadInvoice };
 
 async function login(customParameters) {
     const res = await getRedirectResult(auth);

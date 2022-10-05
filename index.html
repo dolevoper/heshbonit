@@ -12,13 +12,33 @@
     <div id="app"></div>
     <script src="/app.js"></script>
     <script type="module">
-        import { getDocs, signOut, doc, setDoc, invoices, downloadInvoice } from "/firebaseUtils.js";
+        import { signOut, doc, setDoc, invoicesCollection, downloadInvoice, onSnapshot } from "/firebaseUtils.js";
 
         const app = Elm.Main.init({
             node: document.getElementById("app")
         });
 
         app.ports.signOut.subscribe(signOut);
+
+        let invoicesListener;
+
+        app.ports.registerInvoices.subscribe(uid => {
+            invoicesListener?.();
+
+            const invoices = invoicesCollection(uid);
+            
+            invoicesListener = onSnapshot(invoices, snapshot => {
+                app.ports.invoicesReceiver.send(snapshot.docs.map((invoice) => ({ id: invoice.id, ...invoice.data() })));
+            });
+
+            app.ports.createInvoice.subscribe(async ({ id, ...data }) => {
+                try {
+                    await setDoc(doc(invoices, id), data);
+                } catch (err) {
+                    app.ports.firebaseError.send(err.toString());
+                }
+            });
+        });
 
         app.ports.downloadInvoice.subscribe(async invoiceId => {
             try {
@@ -27,24 +47,6 @@
                 app.ports.firebaseError.send(err.toString());
             }
         });
-
-        if (invoices) {
-            app.ports.createInvoice.subscribe(async ({ id, ...data }) => {
-                try {
-                    await setDoc(doc(invoices, id), data);
-                } catch (err) {
-                    app.ports.firebaseError.send(err.toString());
-                }
-            });
-
-            try {
-                const snapshot = await getDocs(invoices);
-
-                app.ports.invoicesReceiver.send(snapshot.docs.map((invoice) => ({ id: invoice.id, ...invoice.data() })));
-            } catch (err) {
-                app.ports.firebaseError.send(err.toString());
-            }
-        }
     </script>
 </body>
 </html>
