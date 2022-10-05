@@ -12,7 +12,7 @@
     <div id="app"></div>
     <script src="/app.js"></script>
     <script type="module">
-        import { signOut, doc, setDoc, invoicesCollection, downloadInvoice, onSnapshot } from "/firebaseUtils.js";
+        import { signOut, doc, setDoc, invoicesCollection, downloadInvoice, onSnapshot, userDoc } from "/firebaseUtils.js";
 
         const app = Elm.Main.init({
             node: document.getElementById("app")
@@ -20,16 +20,27 @@
 
         app.ports.signOut.subscribe(signOut);
 
+        let userListener;
         let invoicesListener;
 
         app.ports.registerInvoices.subscribe(uid => {
+            userListener?.();
             invoicesListener?.();
 
+            const user = userDoc(uid);
             const invoices = invoicesCollection(uid);
+
+            // userListener = onSnapshot(
+            //     user,
+            //     doc => app.ports.userDataReceiver.send(doc.data()),
+            //     err => app.ports.firebaseError.send(err.toString())
+            // );
             
-            invoicesListener = onSnapshot(invoices, snapshot => {
-                app.ports.invoicesReceiver.send(snapshot.docs.map((invoice) => ({ id: invoice.id, ...invoice.data() })));
-            });
+            invoicesListener = onSnapshot(
+                invoices,
+                snapshot => app.ports.invoicesReceiver.send(snapshot.docs.map((invoice) => ({ id: invoice.id, ...invoice.data() }))),
+                err => app.ports.firebaseError.send(err.toString())
+            );
 
             app.ports.createInvoice.subscribe(async ({ id, ...data }) => {
                 try {

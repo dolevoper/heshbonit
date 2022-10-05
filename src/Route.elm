@@ -1,4 +1,4 @@
-module Route exposing (Route(..), createInvoice, fromUrl, home, invoice, uid)
+module Route exposing (Route(..), createInvoice, fromUrl, home, invoice, uidFromUrl)
 
 import Url exposing (Url)
 import Url.Builder
@@ -26,20 +26,20 @@ fromUrl =
 
 
 home : String -> String
-home u =
-    Url.Builder.absolute [ u ] []
+home uid =
+    Url.Builder.absolute [ uid ] []
 
 
 invoice : String -> Int -> String
-invoice u invoiceId =
-    Url.Builder.absolute [ u, "invoice", String.fromInt invoiceId ] []
+invoice uid invoiceId =
+    Url.Builder.absolute [ uid, "invoice", String.fromInt invoiceId ] []
 
 
 createInvoice : String -> String
-createInvoice u =
-    Url.Builder.absolute [ u, "createInvoice" ] []
+createInvoice uid =
+    Url.Builder.absolute [ uid, "createInvoice" ] []
 
 
-uid : Url -> Maybe String
-uid url =
+uidFromUrl : Url -> Maybe String
+uidFromUrl url =
     String.split "/" url.path |> List.drop 1 |> List.head

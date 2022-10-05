@@ -11,6 +11,7 @@ import Json.Decode
 import Pages.CreateInvoice
 import Route
 import Url exposing (Url)
+import UserData exposing (UserData)
 
 
 port signOut : () -> Cmd msg
@@ -22,12 +23,20 @@ port downloadInvoice : Int -> Cmd msg
 port firebaseError : (String -> msg) -> Sub msg
 
 
+type alias Session =
+    { navKey : Key
+    , uid : String
+    , userData : Maybe UserData
+    , invoices : Maybe Invoices
+    }
+
+
 type Model
-    = Home Key String (Maybe Invoices)
-    | Invoice Key String (Maybe Invoices) Int
-    | CreateInvoice Key String (Maybe Invoices) Pages.CreateInvoice.Model
-    | NotFound Key (Maybe String) (Maybe Invoices)
-    | Error Key String String
+    = Home Session
+    | Invoice Session Int
+    | CreateInvoice Session Pages.CreateInvoice.Model
+    | NotFound Session
+    | Error Session String
 
 
 type Msg
@@ -46,12 +55,12 @@ handleCreateInvoiceMsg =
     Pages.CreateInvoice.mapMsg CreateInvoiceMsg NewInvoice
 
 
-fromUrl : Key -> Maybe Invoices -> Url -> ( Model, Cmd Msg )
-fromUrl navKey invoices url =
+fromUrl : Session -> Url -> ( Model, Cmd Msg )
+fromUrl session url =
     let
         buildCommands : String -> List (Cmd Msg) -> Cmd Msg
         buildCommands uid extraCommands =
-            case ( extraCommands, invoices ) of
+            case ( extraCommands, session.invoices ) of
                 ( [], Nothing ) ->
                     Invoices.registerInvoices uid
 
@@ -69,141 +78,112 @@ fromUrl navKey invoices url =
     in
     case Route.fromUrl url of
         Nothing ->
-            ( NotFound navKey (Route.uid url) invoices, Cmd.none )
+            ( NotFound session, Cmd.none )
 
         Just route ->
             case route of
                 Route.Home uid ->
-                    ( Home navKey uid invoices, buildCommands uid [] )
+                    ( Home session, buildCommands uid [] )
 
                 Route.Invoice uid num ->
-                    ( Invoice navKey uid invoices num, buildCommands uid [] )
+                    ( Invoice session num, buildCommands uid [] )
 
                 Route.CreateInvoice uid ->
                     Tuple.mapBoth
-                        (CreateInvoice navKey uid invoices)
+                        (CreateInvoice session)
                         (Cmd.map handleCreateInvoiceMsg >> List.singleton >> buildCommands uid)
                         (Pages.CreateInvoice.init uid)
 
 
 init : () -> Url -> Key -> ( Model, Cmd Msg )
 init _ url key =
-    fromUrl key Nothing url
+    let
+        session : Session
+        session = Session key (Maybe.withDefault "" <| Route.uidFromUrl url) Nothing Nothing
+    in
+    fromUrl session url
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        navKey =
+        session : Session
+        session =
             case model of
-                Home key _ _ ->
-                    key
+                Home s ->
+                    s
 
-                Invoice key _ _ _ ->
-                    key
+                Invoice s _ ->
+                    s
 
-                CreateInvoice key _ _ _ ->
-                    key
+                CreateInvoice s _ ->
+                    s
 
-                NotFound key _ _ ->
-                    key
+                NotFound s ->
+                    s
 
-                Error key _ _ ->
-                    key
+                Error s _ ->
+                    s
 
-        uid =
-            case model of
-                Home _ u _ ->
-                    u
-
-                Invoice _ u _ _ ->
-                    u
-
-                CreateInvoice _ u _ _ ->
-                    u
-
-                NotFound _ u _ ->
-                    Maybe.withDefault "" u
-
-                Error _ u _ ->
-                    u
-
-        invoices =
-            case model of
-                Home _ _ i ->
-                    i
-
-                Invoice _ _ i _ ->
-                    i
-
-                CreateInvoice _ _ i _ ->
-                    i
-
-                NotFound _ _ i ->
-                    i
-
-                Error _ _ _ ->
-                    Nothing
-
-        setInvoices : Maybe Invoices -> Model -> Model
-        setInvoices i m =
+        setSession : Session -> Model -> Model
+        setSession s m =
             case m of
-                Home k u _ ->
-                    Home k u i
+                Home _ ->
+                    Home s
 
-                Invoice k u _ n ->
-                    Invoice k u i n
+                Invoice _ n ->
+                    Invoice s n
 
-                CreateInvoice k u _ f ->
-                    CreateInvoice k u i f
+                CreateInvoice _ f ->
+                    CreateInvoice s f
 
-                NotFound k u _ ->
-                    NotFound k u i
+                NotFound _ ->
+                    NotFound s
 
-                Error _ _ _ ->
-                    m
+                Error _ err ->
+                    Error s err
     in
     case ( model, msg ) of
         ( _, LinkClicked urlRequest ) ->
             case urlRequest of
                 Browser.Internal url ->
-                    ( model, pushUrl navKey <| Url.toString url )
+                    ( model, pushUrl session.navKey <| Url.toString url )
 
                 Browser.External href ->
                     ( model, load href )
 
         ( _, UrlChanged url ) ->
-            fromUrl navKey invoices url
+            fromUrl session url
 
         ( _, ReceivedInvoices v ) ->
             case Invoices.fromJson v of
                 Err str ->
-                    ( Error navKey uid str, Cmd.none )
+                    ( Error session str, Cmd.none )
 
                 Ok i ->
-                    ( setInvoices (Just i) model, Cmd.none )
+                    ( setSession { session | invoices = Just i } model, Cmd.none )
 
         ( _, SignOut ) ->
             ( model, signOut () )
 
         ( _, FirebaseError err ) ->
-            ( Error navKey uid err, Cmd.none )
+            ( Error session err, Cmd.none )
 
-        ( CreateInvoice _ _ _ m, CreateInvoiceMsg msg_ ) ->
-            ( CreateInvoice navKey uid invoices <| Pages.CreateInvoice.update msg_ m, Cmd.none )
+        ( CreateInvoice s m, CreateInvoiceMsg msg_ ) ->
+            ( CreateInvoice s <| Pages.CreateInvoice.update msg_ m, Cmd.none )
 
-        ( CreateInvoice _ _ _ _, NewInvoice m ) ->
-            case invoices of
+        ( CreateInvoice _ _, NewInvoice m ) ->
+            case session.invoices of
                 Nothing ->
                     ( model, Cmd.none )
 
                 Just i ->
                     Invoices.create m i
                         |> Tuple.mapBoth
-                            (\ni -> setInvoices (Just ni) model)
-                            (\cmd -> Cmd.batch [ cmd, pushUrl navKey <| Route.home uid ])
+                            (\ni -> setSession { session | invoices = Just ni } model)
+                            (List.singleton >> (++) [ pushUrl session.navKey <| Route.home session.uid ] >> Cmd.batch)
 
-        ( Invoice _ _ _ num, DownloadInvoice ) ->
+        ( Invoice _ num, DownloadInvoice ) ->
             ( model, downloadInvoice num )
 
         ( _, CreateInvoiceMsg _ ) ->
@@ -242,19 +222,19 @@ viewHeader =
 viewMain : Model -> Html Msg
 viewMain model =
     case model of
-        Home _ uid invoices ->
+        Home { uid, invoices } ->
             viewHome uid invoices
 
-        Invoice _ uid invoices num ->
+        Invoice { uid, invoices } num ->
             viewInvoice uid num invoices
 
-        CreateInvoice _ _ invoices m ->
+        CreateInvoice { invoices } m ->
             Pages.CreateInvoice.view invoices m |> Html.map handleCreateInvoiceMsg
 
-        NotFound _ uid _ ->
+        NotFound { uid } ->
             main_ [] <| viewNotFound uid "הדף שחיפשת לא קיים."
 
-        Error _ _ str ->
+        Error _ str ->
             main_ [] [ p [] [ text str ] ]
 
 
@@ -302,7 +282,7 @@ viewInvoice uid num invoices =
                         [ p [] [ text "טוען..." ] ]
 
                     ( Just _, Nothing ) ->
-                        viewNotFound (Just uid) ("אופס, לא מצאתי חשבונית עם מספר " ++ String.fromInt num)
+                        viewNotFound uid ("אופס, לא מצאתי חשבונית עם מספר " ++ String.fromInt num)
 
                     ( _, Just invoice ) ->
                         [ p [] [ h4 [] [ text "עבור" ], text invoice.description ]
@@ -323,9 +303,9 @@ viewDate rd =
             span [] [ text "INVALID DATE" ]
 
 
-viewNotFound : Maybe String -> String -> List (Html Msg)
+viewNotFound : String -> String -> List (Html Msg)
 viewNotFound uid msg =
-    [ p [] [ text msg, br [] [], a [ href <| Route.home <| Maybe.withDefault "" uid ] [ text "חזרה לדף הראשי" ] ] ]
+    [ p [] [ text msg, br [] [], a [ href <| Route.home <| uid ] [ text "חזרה לדף הראשי" ] ] ]
 
 
 main : Program () Model Msg

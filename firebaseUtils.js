@@ -22,11 +22,13 @@ const auth = getAuth();
 const signOut = () => _signOut(auth).then(() => login({ prompt: "select_account" }));
 
 const db = getFirestore(app);
-const invoicesCollection = uid => collection(db, "users", uid, "invoices");
+const users = collection(db, "users");
+const userDoc = uid => doc(users, uid)
+const invoicesCollection = uid => collection(userDoc(uid), "invoices");
 
 const storage = getStorage(app, "gs://heshbonit-invoices");
 
-export { app, getDocs, signOut, doc, setDoc, invoicesCollection, onSnapshot, downloadInvoice };
+export { app, getDocs, signOut, doc, setDoc, userDoc, invoicesCollection, onSnapshot, downloadInvoice };
 
 async function login(customParameters) {
     const res = await getRedirectResult(auth);
