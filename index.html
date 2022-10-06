@@ -12,13 +12,17 @@
     <div id="app"></div>
     <script src="/app.js"></script>
     <script type="module">
-        import { signOut, doc, setDoc, invoicesCollection, downloadInvoice, onSnapshot, userDoc } from "/firebaseUtils.js";
+        import { signOut, doc, setDoc, invoicesCollection, downloadInvoice, onSnapshot, userDoc, auth, onAuthStateChanged } from "/firebaseUtils.js";
 
         const app = Elm.Main.init({
             node: document.getElementById("app")
         });
 
-        app.ports.signOut.subscribe(signOut);
+        app.ports.signOut.subscribe(() => {
+            userListener?.();
+            invoicesListener?.();
+            signOut();
+        });
 
         let userListener;
         let invoicesListener;
@@ -65,6 +69,12 @@
             } catch (err) {
                 app.ports.firebaseError.send(err.toString());
             }
+        });
+
+        onAuthStateChanged(auth, user => {
+            if (!user) return;
+
+            app.ports.userLoggedIn.send(user);
         });
     </script>
 </body>

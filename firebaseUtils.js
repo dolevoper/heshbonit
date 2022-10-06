@@ -28,7 +28,7 @@ const invoicesCollection = uid => collection(userDoc(uid), "invoices");
 
 const storage = getStorage(app, "gs://heshbonit-invoices");
 
-export { app, getDocs, signOut, doc, setDoc, userDoc, invoicesCollection, onSnapshot, downloadInvoice };
+export { app, getDocs, signOut, doc, setDoc, userDoc, invoicesCollection, onSnapshot, downloadInvoice, auth, onAuthStateChanged };
 
 async function login(customParameters) {
     const res = await getRedirectResult(auth);

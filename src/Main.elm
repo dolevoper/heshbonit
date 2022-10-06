@@ -3,16 +3,19 @@ port module Main exposing (main)
 import Browser
 import Browser.Navigation exposing (Key, load, pushUrl)
 import Date exposing (Date, toDataString, toShortString)
-import Html exposing (Html, a, br, button, h1, h2, h3, h4, header, main_, p, span, table, td, text, time, tr)
+import Html exposing (Html, a, br, button, h1, h2, h3, h4, header, main_, p, section, span, table, td, text, time, tr)
 import Html.Attributes exposing (datetime, href)
 import Html.Events exposing (onClick)
 import Invoices as Invoices exposing (InvoiceData, Invoices, invoicesReceiver)
 import Json.Decode
+import LoggedInUser exposing (LoggedInUser, userLoggedIn)
 import Pages.CreateInvoice
 import Pages.CreateUser
 import Route
 import Url exposing (Url)
 import UserData exposing (UserData, setUserData, userDataReceiver)
+import Html exposing (img)
+import Html.Attributes exposing (src)
 
 
 port signOut : () -> Cmd msg
@@ -29,6 +32,7 @@ type alias Session =
     , uid : String
     , userData : Maybe UserData
     , invoices : Maybe Invoices
+    , loggedInUser : Maybe LoggedInUser
     }
 
 
@@ -41,11 +45,34 @@ type Model
     | Error Session String
 
 
+session : Model -> Session
+session model =
+    case model of
+        Home s ->
+            s
+
+        Invoice s _ ->
+            s
+
+        CreateInvoice s _ ->
+            s
+
+        CreateUser s _ _ ->
+            s
+
+        NotFound s ->
+            s
+
+        Error s _ ->
+            s
+
+
 type Msg
     = LinkClicked Browser.UrlRequest
     | UrlChanged Url
     | ReceviedUserData Json.Decode.Value
     | ReceivedInvoices Json.Decode.Value
+    | UserLoggedIn Json.Decode.Value
     | SignOut
     | FirebaseError String
     | NewInvoice InvoiceData
@@ -61,11 +88,11 @@ handleCreateInvoiceMsg =
 
 
 fromUrl : Session -> Url -> ( Model, Cmd Msg )
-fromUrl session url =
+fromUrl s url =
     let
         buildCommands : String -> List (Cmd Msg) -> Cmd Msg
         buildCommands uid extraCommands =
-            case ( extraCommands, session.invoices ) of
+            case ( extraCommands, s.invoices ) of
                 ( [], Nothing ) ->
                     Invoices.registerInvoices uid
 
@@ -83,19 +110,19 @@ fromUrl session url =
     in
     case Route.fromUrl url of
         Nothing ->
-            ( NotFound session, Cmd.none )
+            ( NotFound s, Cmd.none )
 
         Just route ->
             case route of
                 Route.Home uid ->
-                    ( Home session, buildCommands uid [] )
+                    ( Home s, buildCommands uid [] )
 
                 Route.Invoice uid num ->
-                    ( Invoice session num, buildCommands uid [] )
+                    ( Invoice s num, buildCommands uid [] )
 
                 Route.CreateInvoice uid ->
                     Tuple.mapBoth
-                        (CreateInvoice session)
+                        (CreateInvoice s)
                         (Cmd.map handleCreateInvoiceMsg >> List.singleton >> buildCommands uid)
                         (Pages.CreateInvoice.init uid)
 
@@ -103,36 +130,19 @@ fromUrl session url =
 init : () -> Url -> Key -> ( Model, Cmd Msg )
 init _ url key =
     let
-        session : Session
-        session =
-            Session key (Maybe.withDefault "" <| Route.uidFromUrl url) Nothing Nothing
+        emptySession : Session
+        emptySession =
+            Session key (Maybe.withDefault "" <| Route.uidFromUrl url) Nothing Nothing Nothing
     in
-    fromUrl session url
+    fromUrl emptySession url
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        session : Session
-        session =
-            case model of
-                Home s ->
-                    s
-
-                Invoice s _ ->
-                    s
-
-                CreateInvoice s _ ->
-                    s
-
-                CreateUser s _ _ ->
-                    s
-
-                NotFound s ->
-                    s
-
-                Error s _ ->
-                    s
+        currentSession : Session
+        currentSession =
+            session model
 
         setSession : Session -> Model -> Model
         setSession s m =
@@ -159,61 +169,69 @@ update msg model =
         ( _, LinkClicked urlRequest ) ->
             case urlRequest of
                 Browser.Internal url ->
-                    ( model, pushUrl session.navKey <| Url.toString url )
+                    ( model, pushUrl currentSession.navKey <| Url.toString url )
 
                 Browser.External href ->
                     ( model, load href )
 
         ( _, UrlChanged url ) ->
-            fromUrl session url
+            fromUrl currentSession url
 
         ( _, ReceviedUserData v ) ->
             case UserData.fromJson v of
                 Err str ->
-                    ( Error session str, Cmd.none )
+                    ( Error currentSession str, Cmd.none )
 
                 Ok Nothing ->
-                    ( CreateUser session model Pages.CreateUser.init, Cmd.none )
+                    ( CreateUser currentSession model Pages.CreateUser.init, Cmd.none )
 
                 Ok userData ->
-                    ( setSession { session | userData = userData } model, Cmd.none )
+                    ( setSession { currentSession | userData = userData } model, Cmd.none )
 
         ( _, ReceivedInvoices v ) ->
             case Invoices.fromJson v of
                 Err str ->
-                    ( Error session str, Cmd.none )
+                    ( Error currentSession str, Cmd.none )
 
                 Ok i ->
-                    ( setSession { session | invoices = Just i } model, Cmd.none )
+                    ( setSession { currentSession | invoices = Just i } model, Cmd.none )
 
         ( _, SignOut ) ->
             ( model, signOut () )
 
         ( _, FirebaseError err ) ->
-            ( Error session err, Cmd.none )
+            ( Error currentSession err, Cmd.none )
+
+        ( _, UserLoggedIn value ) ->
+            case LoggedInUser.fromJson value of
+                Err err ->
+                    ( Error currentSession err, Cmd.none )
+
+                Ok loggedInUser ->
+                    ( setSession { currentSession | loggedInUser = Just loggedInUser } model, Cmd.none )
 
         ( CreateInvoice s m, CreateInvoiceMsg msg_ ) ->
             ( CreateInvoice s <| Pages.CreateInvoice.update msg_ m, Cmd.none )
 
         ( CreateInvoice _ _, NewInvoice m ) ->
-            case session.invoices of
+            case currentSession.invoices of
                 Nothing ->
                     ( model, Cmd.none )
 
                 Just i ->
                     Invoices.create m i
                         |> Tuple.mapBoth
-                            (\ni -> setSession { session | invoices = Just ni } model)
-                            (List.singleton >> (++) [ pushUrl session.navKey <| Route.home session.uid ] >> Cmd.batch)
+                            (\ni -> setSession { currentSession | invoices = Just ni } model)
+                            (List.singleton >> (++) [ pushUrl currentSession.navKey <| Route.home currentSession.uid ] >> Cmd.batch)
 
         ( Invoice _ num, DownloadInvoice ) ->
             ( model, downloadInvoice num )
 
         ( CreateUser _ pm m, CreateUserMsg msg_ ) ->
-            ( CreateUser session pm <| Pages.CreateUser.update msg_ m, Cmd.none )
+            ( CreateUser currentSession pm <| Pages.CreateUser.update msg_ m, Cmd.none )
 
         ( CreateUser _ pm _, UserCreated userData ) ->
-            ( setSession { session | userData = Just userData } pm, setUserData userData )
+            ( setSession { currentSession | userData = Just userData } pm, setUserData userData )
 
         ( _, CreateInvoiceMsg _ ) ->
             ( model, Cmd.none )
@@ -237,21 +255,37 @@ subscriptions _ =
         [ userDataReceiver ReceviedUserData
         , invoicesReceiver ReceivedInvoices
         , firebaseError FirebaseError
+        , userLoggedIn UserLoggedIn
         ]
 
 
 view : Model -> Browser.Document Msg
 view model =
     { title = "חשבונית"
-    , body = [ viewHeader, viewMain model ]
+    , body = [ viewHeader <| .loggedInUser <| session model, viewMain model ]
     }
 
 
-viewHeader : Html Msg
-viewHeader =
+viewHeader : Maybe LoggedInUser -> Html Msg
+viewHeader loggedInUser =
+    let
+        userSection : Html Msg
+        userSection =
+            case loggedInUser of
+                Nothing ->
+                    section [] [ span [] [ text "טוען..." ] ]
+
+                Just data ->
+                    section []
+                        [ img [ src data.photoUrl ] []
+                        , span [] [ text data.displayName ]
+                        , span [] [ text data.email ]
+                        , button [ onClick SignOut ] [ text "התנתק" ]
+                        ]
+    in
     header []
         [ h1 [] [ text "חשבונית" ]
-        , button [ onClick SignOut ] [ text "התנתק" ]
+        , userSection
         ]
 
 
