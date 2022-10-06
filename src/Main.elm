@@ -9,9 +9,10 @@ import Html.Events exposing (onClick)
 import Invoices as Invoices exposing (InvoiceData, Invoices, invoicesReceiver)
 import Json.Decode
 import Pages.CreateInvoice
+import Pages.CreateUser
 import Route
 import Url exposing (Url)
-import UserData exposing (UserData)
+import UserData exposing (UserData, setUserData, userDataReceiver)
 
 
 port signOut : () -> Cmd msg
@@ -35,6 +36,7 @@ type Model
     = Home Session
     | Invoice Session Int
     | CreateInvoice Session Pages.CreateInvoice.Model
+    | CreateUser Session Model Pages.CreateUser.Model
     | NotFound Session
     | Error Session String
 
@@ -42,11 +44,14 @@ type Model
 type Msg
     = LinkClicked Browser.UrlRequest
     | UrlChanged Url
+    | ReceviedUserData Json.Decode.Value
     | ReceivedInvoices Json.Decode.Value
     | SignOut
     | FirebaseError String
     | NewInvoice InvoiceData
     | CreateInvoiceMsg Pages.CreateInvoice.Msg
+    | CreateUserMsg Pages.CreateUser.Msg
+    | UserCreated UserData
     | DownloadInvoice
 
 
@@ -99,7 +104,8 @@ init : () -> Url -> Key -> ( Model, Cmd Msg )
 init _ url key =
     let
         session : Session
-        session = Session key (Maybe.withDefault "" <| Route.uidFromUrl url) Nothing Nothing
+        session =
+            Session key (Maybe.withDefault "" <| Route.uidFromUrl url) Nothing Nothing
     in
     fromUrl session url
 
@@ -117,6 +123,9 @@ update msg model =
                     s
 
                 CreateInvoice s _ ->
+                    s
+
+                CreateUser s _ _ ->
                     s
 
                 NotFound s ->
@@ -137,6 +146,9 @@ update msg model =
                 CreateInvoice _ f ->
                     CreateInvoice s f
 
+                CreateUser _ pm im ->
+                    CreateUser s pm im
+
                 NotFound _ ->
                     NotFound s
 
@@ -154,6 +166,17 @@ update msg model =
 
         ( _, UrlChanged url ) ->
             fromUrl session url
+
+        ( _, ReceviedUserData v ) ->
+            case UserData.fromJson v of
+                Err str ->
+                    ( Error session str, Cmd.none )
+
+                Ok Nothing ->
+                    ( CreateUser session model Pages.CreateUser.init, Cmd.none )
+
+                Ok userData ->
+                    ( setSession { session | userData = userData } model, Cmd.none )
 
         ( _, ReceivedInvoices v ) ->
             case Invoices.fromJson v of
@@ -186,6 +209,12 @@ update msg model =
         ( Invoice _ num, DownloadInvoice ) ->
             ( model, downloadInvoice num )
 
+        ( CreateUser _ pm m, CreateUserMsg msg_ ) ->
+            ( CreateUser session pm <| Pages.CreateUser.update msg_ m, Cmd.none )
+
+        ( CreateUser _ pm _, UserCreated userData ) ->
+            ( setSession { session | userData = Just userData } pm, setUserData userData )
+
         ( _, CreateInvoiceMsg _ ) ->
             ( model, Cmd.none )
 
@@ -195,11 +224,18 @@ update msg model =
         ( _, DownloadInvoice ) ->
             ( model, Cmd.none )
 
+        ( _, CreateUserMsg _ ) ->
+            ( model, Cmd.none )
+
+        ( _, UserCreated _ ) ->
+            ( model, Cmd.none )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
-        [ invoicesReceiver ReceivedInvoices
+        [ userDataReceiver ReceviedUserData
+        , invoicesReceiver ReceivedInvoices
         , firebaseError FirebaseError
         ]
 
@@ -221,15 +257,27 @@ viewHeader =
 
 viewMain : Model -> Html Msg
 viewMain model =
+    let
+        loading : Html Msg
+        loading =
+            main_ [] [ p [] [ text "טוען..." ] ]
+
+        handleUserData : (UserData -> Html Msg) -> Maybe UserData -> Html Msg
+        handleUserData v =
+            Maybe.withDefault loading << Maybe.map v
+    in
     case model of
         Home { uid, invoices } ->
             viewHome uid invoices
 
-        Invoice { uid, invoices } num ->
-            viewInvoice uid num invoices
+        Invoice { uid, invoices, userData } num ->
+            handleUserData (viewInvoice uid num invoices) userData
 
         CreateInvoice { invoices } m ->
             Pages.CreateInvoice.view invoices m |> Html.map handleCreateInvoiceMsg
+
+        CreateUser _ _ m ->
+            Pages.CreateUser.view m |> Html.map (Pages.CreateUser.mapMsg CreateUserMsg UserCreated)
 
         NotFound { uid } ->
             main_ [] <| viewNotFound uid "הדף שחיפשת לא קיים."
@@ -266,15 +314,15 @@ viewHome uid invoices =
         ]
 
 
-viewInvoice : String -> Int -> Maybe Invoices -> Html Msg
-viewInvoice uid num invoices =
+viewInvoice : String -> Int -> Maybe Invoices -> UserData -> Html Msg
+viewInvoice uid num invoices userData =
     let
         maybeInvoice =
             Maybe.andThen (Invoices.get num) invoices
     in
     main_ [] <|
-        [ h2 [] [ text "אדווה דולב", a [ href <| Route.home uid ] [ text "❌" ] ]
-        , h3 [] [ "עוסק פטור 201637691" |> text ]
+        [ h2 [] [ text userData.name, a [ href <| Route.home uid ] [ text "❌" ] ]
+        , h3 [] [ "עוסק פטור " ++ userData.id |> text ]
         , h4 [] [ "קבלה מס' " ++ String.fromInt num |> text ]
         ]
             ++ (case ( invoices, maybeInvoice ) of

@@ -1,8 +1,9 @@
 module Pages.CreateInvoice exposing (Model, Msg, init, mapMsg, update, view)
 
 import Date
+import Forms exposing (NumericInputType(..), numericInput)
 import Html exposing (Html, a, button, form, h4, input, label, main_, span, text, textarea)
-import Html.Attributes exposing (attribute, href, pattern, required, type_, value)
+import Html.Attributes exposing (href, required, type_, value)
 import Html.Events exposing (onInput, onSubmit)
 import Invoices exposing (InvoiceData, Invoices)
 import Route
@@ -112,7 +113,7 @@ view invoices model =
                 ]
             , label []
                 [ span [] [ text "סה\"כ" ]
-                , input [ required True, attribute "inputmode" "numeric", pattern "(\\d+\\.)?\\d*", value model.amount, onInput Amount ] []
+                , numericInput FloatingPointNumericInput [ required True, value model.amount, onInput Amount ] []
                 ]
             , label []
                 [ span [] [ text "תאריך" ]

@@ -30,17 +30,25 @@
             const user = userDoc(uid);
             const invoices = invoicesCollection(uid);
 
-            // userListener = onSnapshot(
-            //     user,
-            //     doc => app.ports.userDataReceiver.send(doc.data()),
-            //     err => app.ports.firebaseError.send(err.toString())
-            // );
+            userListener = onSnapshot(
+                user,
+                doc => app.ports.userDataReceiver.send(doc.data()),
+                err => app.ports.firebaseError.send(err.toString())
+            );
             
             invoicesListener = onSnapshot(
                 invoices,
                 snapshot => app.ports.invoicesReceiver.send(snapshot.docs.map((invoice) => ({ id: invoice.id, ...invoice.data() }))),
                 err => app.ports.firebaseError.send(err.toString())
             );
+
+            app.ports.setUserData.subscribe(async data => {
+                try {
+                    await setDoc(user, data);
+                } catch (err) {
+                    app.ports.firebaseError.send(err.toString());
+                }
+            });
 
             app.ports.createInvoice.subscribe(async ({ id, ...data }) => {
                 try {

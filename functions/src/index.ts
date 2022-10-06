@@ -18,6 +18,7 @@ export const createInvoice =
           const {userId, invoiceId} = context.params;
           logger.info("starting invoice creation", invoiceId);
 
+          const userData = (await snap.ref.parent.parent?.get())?.data();
           const data = snap.data();
           const file = getStorage()
               .bucket("heshbonit-invoices")
@@ -32,8 +33,8 @@ export const createInvoice =
     <title>חשובנית ${invoiceId}</title>
   </head>
   <body>
-    <h1>אדווה דולב</h1>
-    <h2>עוסק פטור 201637691</h2>
+    <h1>${userData?.name}</h1>
+    <h2>עוסק פטור ${userData?.id}</h2>
     <h3>קבלה מס' ${invoiceId}</h3>
     <time datetime="${data.date}">${data.date.split("-").reverse().join("/")}</time>
     <p>
