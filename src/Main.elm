@@ -2,10 +2,10 @@ port module Main exposing (main)
 
 import Browser
 import Browser.Navigation exposing (Key, load, pushUrl)
+import Css exposing (absolute, display, displayFlex, flexGrow, listStyle, none, num, position, relative)
 import Date exposing (Date, toDataString, toShortString)
-import Html
 import Html.Styled as Styled exposing (..)
-import Html.Styled.Attributes exposing (datetime, href, src)
+import Html.Styled.Attributes exposing (attribute, css, datetime, href, src)
 import Html.Styled.Events exposing (onClick)
 import Invoices as Invoices exposing (InvoiceData, Invoices, invoicesReceiver)
 import Json.Decode
@@ -15,6 +15,8 @@ import Pages.CreateUser
 import Route
 import Url exposing (Url)
 import UserData exposing (UserData, setUserData, userDataReceiver)
+import Css exposing (left)
+import Css exposing (px)
 
 
 port signOut : () -> Cmd msg
@@ -275,15 +277,17 @@ viewHeader loggedInUser =
                     section [] [ span [] [ text "טוען..." ] ]
 
                 Just data ->
-                    section []
-                        [ img [ src data.photoUrl ] []
-                        , span [] [ text data.displayName ]
-                        , span [] [ text data.email ]
-                        , button [ onClick SignOut ] [ text "התנתק" ]
+                    details [ css [ position relative ] ]
+                        [ summary [ css [ listStyle none ] ] [ img [ src data.photoUrl, attribute "referrerpolicy" "no-referrer" ] [] ]
+                        , div [ css [ position absolute, left (px 0) ] ]
+                            [ span [] [ text data.displayName ]
+                            , span [] [ text data.email ]
+                            , button [ onClick SignOut ] [ text "התנתק" ]
+                            ]
                         ]
     in
-    header []
-        [ h1 [] [ text "חשבונית" ]
+    header [ css [ displayFlex ] ]
+        [ h1 [ css [ flexGrow (num 1) ] ] [ text "חשבונית" ]
         , userSection
         ]
 
