@@ -1,7 +1,7 @@
 module Forms exposing (NumericInputType(..), numericInput)
 
-import Html exposing (Attribute, Html, input)
-import Html.Attributes exposing (attribute, pattern)
+import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (attribute, pattern)
 
 
 type NumericInputType

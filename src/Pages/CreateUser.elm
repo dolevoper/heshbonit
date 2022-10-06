@@ -1,9 +1,9 @@
 module Pages.CreateUser exposing (Model, Msg, init, mapMsg, update, view)
 
 import Forms exposing (NumericInputType(..), numericInput)
-import Html exposing (Html, button, form, input, label, main_, span, text)
-import Html.Attributes exposing (required, type_, value)
-import Html.Events exposing (onInput, onSubmit)
+import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (required, type_, value)
+import Html.Styled.Events exposing (onInput, onSubmit)
 import UserData exposing (UserData)
 
 

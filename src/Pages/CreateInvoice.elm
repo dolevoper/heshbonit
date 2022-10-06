@@ -2,9 +2,10 @@ module Pages.CreateInvoice exposing (Model, Msg, init, mapMsg, update, view)
 
 import Date
 import Forms exposing (NumericInputType(..), numericInput)
-import Html exposing (Html, a, button, form, h4, input, label, main_, span, text, textarea)
-import Html.Attributes exposing (href, required, type_, value)
-import Html.Events exposing (onInput, onSubmit)
+import Html
+import Html.Styled exposing (..)
+import Html.Styled.Attributes exposing (href, required, type_, value)
+import Html.Styled.Events exposing (onInput, onSubmit)
 import Invoices exposing (InvoiceData, Invoices)
 import Route
 import Task

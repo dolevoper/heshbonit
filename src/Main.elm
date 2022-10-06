@@ -3,9 +3,10 @@ port module Main exposing (main)
 import Browser
 import Browser.Navigation exposing (Key, load, pushUrl)
 import Date exposing (Date, toDataString, toShortString)
-import Html exposing (Html, a, br, button, h1, h2, h3, h4, header, main_, p, section, span, table, td, text, time, tr)
-import Html.Attributes exposing (datetime, href)
-import Html.Events exposing (onClick)
+import Html
+import Html.Styled as Styled exposing (..)
+import Html.Styled.Attributes exposing (datetime, href, src)
+import Html.Styled.Events exposing (onClick)
 import Invoices as Invoices exposing (InvoiceData, Invoices, invoicesReceiver)
 import Json.Decode
 import LoggedInUser exposing (LoggedInUser, userLoggedIn)
@@ -14,8 +15,6 @@ import Pages.CreateUser
 import Route
 import Url exposing (Url)
 import UserData exposing (UserData, setUserData, userDataReceiver)
-import Html exposing (img)
-import Html.Attributes exposing (src)
 
 
 port signOut : () -> Cmd msg
@@ -262,7 +261,7 @@ subscriptions _ =
 view : Model -> Browser.Document Msg
 view model =
     { title = "חשבונית"
-    , body = [ viewHeader <| .loggedInUser <| session model, viewMain model ]
+    , body = [ viewHeader <| .loggedInUser <| session model, viewMain model ] |> List.map toUnstyled
     }
 
 
@@ -308,10 +307,10 @@ viewMain model =
             handleUserData (viewInvoice uid num invoices) userData
 
         CreateInvoice { invoices } m ->
-            Pages.CreateInvoice.view invoices m |> Html.map handleCreateInvoiceMsg
+            Pages.CreateInvoice.view invoices m |> Styled.map handleCreateInvoiceMsg
 
         CreateUser _ _ m ->
-            Pages.CreateUser.view m |> Html.map (Pages.CreateUser.mapMsg CreateUserMsg UserCreated)
+            Pages.CreateUser.view m |> Styled.map (Pages.CreateUser.mapMsg CreateUserMsg UserCreated)
 
         NotFound { uid } ->
             main_ [] <| viewNotFound uid "הדף שחיפשת לא קיים."
