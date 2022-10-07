@@ -2,8 +2,9 @@ port module Main exposing (main)
 
 import Browser
 import Browser.Navigation exposing (Key, load, pushUrl)
-import Css exposing (absolute, display, displayFlex, flexGrow, listStyle, none, num, position, relative)
+import Css exposing (absolute, alignItems, backgroundColor, border3, borderRadius, color, column, displayFlex, flexDirection, flexGrow, height, left, listStyle, marginBottom, none, num, padding, pct, position, px, relative, rem, rgb, solid)
 import Date exposing (Date, toDataString, toShortString)
+import DesignTokens exposing (elevation)
 import Html.Styled as Styled exposing (..)
 import Html.Styled.Attributes exposing (attribute, css, datetime, href, src)
 import Html.Styled.Events exposing (onClick)
@@ -15,8 +16,6 @@ import Pages.CreateUser
 import Route
 import Url exposing (Url)
 import UserData exposing (UserData, setUserData, userDataReceiver)
-import Css exposing (left)
-import Css exposing (px)
 
 
 port signOut : () -> Cmd msg
@@ -270,25 +269,34 @@ view model =
 viewHeader : Maybe LoggedInUser -> Html Msg
 viewHeader loggedInUser =
     let
-        userSection : Html Msg
-        userSection =
+        accountDetails : Html Msg
+        accountDetails =
             case loggedInUser of
                 Nothing ->
                     section [] [ span [] [ text "טוען..." ] ]
 
                 Just data ->
                     details [ css [ position relative ] ]
-                        [ summary [ css [ listStyle none ] ] [ img [ src data.photoUrl, attribute "referrerpolicy" "no-referrer" ] [] ]
-                        , div [ css [ position absolute, left (px 0) ] ]
-                            [ span [] [ text data.displayName ]
-                            , span [] [ text data.email ]
-                            , button [ onClick SignOut ] [ text "התנתק" ]
+                        [ summary [ css [ listStyle none, borderRadius (pct 50), border3 (px 2) solid (rgb 0 0 0), padding (px 1) ] ]
+                            [ img
+                                [ src data.photoUrl
+                                , attribute "referrerpolicy" "no-referrer"
+                                , css [ borderRadius (pct 50), height (Css.em 2) ]
+                                ]
+                                []
+                            ]
+                        , ul [ css [ position absolute, left (px 0), elevation.medium, borderRadius (px 2), padding (Css.em 1), backgroundColor (rgb 255 255 255), listStyle none ] ]
+                            [ li [ css [ displayFlex, flexDirection column, alignItems Css.center, marginBottom (Css.em 1) ] ]
+                                [ b [] [ text data.displayName ]
+                                , span [ css [ color (rgb 140 140 140) ] ] [ text data.email ]
+                                ]
+                            , li [] [ button [ onClick SignOut ] [ text "התנתק" ] ]
                             ]
                         ]
     in
-    header [ css [ displayFlex ] ]
+    header [ css [ displayFlex, alignItems Css.center, padding (Css.em 1), elevation.medium ] ]
         [ h1 [ css [ flexGrow (num 1) ] ] [ text "חשבונית" ]
-        , userSection
+        , accountDetails
         ]
 
 
