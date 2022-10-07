@@ -11,28 +11,28 @@ initializeApp({
   credential: applicationDefault(),
 });
 
-const cert = readFileSync("./cert.p12");
 
 export const createInvoice =
-  functions
-      .runWith({memory: "1GB"})
-      .firestore
-      .document("users/{userId}/invoices/{invoiceId}")
-      .onCreate(async (snap, context) => {
-        try {
-          const {userId, invoiceId} = context.params;
-          logger.info("starting invoice creation", invoiceId);
+functions
+    .runWith({memory: "1GB"})
+    .firestore
+    .document("users/{userId}/invoices/{invoiceId}")
+    .onCreate(async (snap, context) => {
+      try {
+        const cert = readFileSync("./cert.p12");
+        const {userId, invoiceId} = context.params;
+        logger.info("starting invoice creation", invoiceId);
 
-          const userData = (await snap.ref.parent.parent?.get())?.data();
-          const data = snap.data();
-          const file = getStorage()
-              .bucket("heshbonit-invoices")
-              .file(`${userId}/${invoiceId}.pdf`);
+        const userData = (await snap.ref.parent.parent?.get())?.data();
+        const data = snap.data();
+        const file = getStorage()
+            .bucket("heshbonit-invoices")
+            .file(`${userId}/${invoiceId}.pdf`);
 
-          const browser = await puppeteer.launch();
-          const page = await browser.newPage();
-          /* eslint-disable max-len */
-          const html = `
+        const browser = await puppeteer.launch();
+        const page = await browser.newPage();
+        /* eslint-disable max-len */
+        const html = `
 <html dir="rtl">
   <head>
     <title>חשובנית ${invoiceId}</title>
@@ -51,34 +51,34 @@ export const createInvoice =
 </html>`;
           /* eslint-enable max-len */
 
-          await page.setContent(html, {waitUntil: "networkidle2"});
-          await page.emulateMediaType("screen");
+        await page.setContent(html, {waitUntil: "networkidle2"});
+        await page.emulateMediaType("screen");
 
-          const pdfBuffer = await page.pdf({
-            format: "A4",
-          });
+        const pdfBuffer = await page.pdf({
+          format: "A4",
+        });
 
-          const pdfWithPlaceholder = plainAddPlaceholder({
-            pdfBuffer,
-            reason: "Signed Certificate",
-            contactInfo: "omerdolev90@gmail.com",
-            name: "Omer Dolev",
-            location: "Israel",
-            signatureLength: cert.length,
-          });
+        const pdfWithPlaceholder = plainAddPlaceholder({
+          pdfBuffer,
+          reason: "Signed Certificate",
+          contactInfo: "omerdolev90@gmail.com",
+          name: "Omer Dolev",
+          location: "Israel",
+          signatureLength: cert.length,
+        });
 
-          const signedPdf = signer.sign(
-              pdfWithPlaceholder,
-              cert,
-              {asn1StrictParsing: true}
-          );
+        const signedPdf = signer.sign(
+            pdfWithPlaceholder,
+            cert,
+            {asn1StrictParsing: true}
+        );
 
-          await file.save(signedPdf, {contentType: "application/pdf"});
+        await file.save(signedPdf, {contentType: "application/pdf"});
 
-          await browser.close();
+        await browser.close();
 
-          logger.info("invoice created");
-        } catch (err) {
-          logger.error(err);
-        }
-      });
+        logger.info("invoice created");
+      } catch (err) {
+        logger.error(err);
+      }
+    });
