@@ -3,10 +3,15 @@ import * as functions from "firebase-functions";
 import {initializeApp, applicationDefault} from "firebase-admin/app";
 import {getStorage} from "firebase-admin/storage";
 import * as puppeteer from "puppeteer";
+import signer from "node-signpdf";
+import {plainAddPlaceholder} from "node-signpdf/dist/helpers";
+import {readFileSync} from "fs";
 
 initializeApp({
   credential: applicationDefault(),
 });
+
+const cert = readFileSync("./cert.p12");
 
 export const createInvoice =
   functions
@@ -49,11 +54,26 @@ export const createInvoice =
           await page.setContent(html, {waitUntil: "networkidle2"});
           await page.emulateMediaType("screen");
 
-          const pdf = await page.pdf({
+          const pdfBuffer = await page.pdf({
             format: "A4",
           });
 
-          await file.save(pdf, {contentType: "application/pdf"});
+          const pdfWithPlaceholder = plainAddPlaceholder({
+            pdfBuffer,
+            reason: "Signed Certificate",
+            contactInfo: "omerdolev90@gmail.com",
+            name: "Omer Dolev",
+            location: "Israel",
+            signatureLength: cert.length,
+          });
+
+          const signedPdf = signer.sign(
+              pdfWithPlaceholder,
+              cert,
+              {asn1StrictParsing: true}
+          );
+
+          await file.save(signedPdf, {contentType: "application/pdf"});
 
           await browser.close();
 
