@@ -1,11 +1,10 @@
 import * as logger from "firebase-functions/logger";
 import * as functions from "firebase-functions";
 import {initializeApp, applicationDefault} from "firebase-admin/app";
-import {getStorage} from "firebase-admin/storage";
+import {getStorage, Storage} from "firebase-admin/storage";
 import * as puppeteer from "puppeteer";
 import signer from "node-signpdf";
 import {plainAddPlaceholder} from "node-signpdf/dist/helpers";
-import {readFileSync} from "fs";
 
 initializeApp({
   credential: applicationDefault(),
@@ -19,11 +18,18 @@ functions
     .document("users/{userId}/invoices/{invoiceId}")
     .onCreate(async (snap, context) => {
       try {
-        const cert = readFileSync("./cert.p12");
         const {userId, invoiceId} = context.params;
         logger.info("starting invoice creation", invoiceId);
 
-        const userData = (await snap.ref.parent.parent?.get())?.data();
+        const certStream = getStorage()
+            .bucket("heshbonit-11b34.appspot.com")
+            .file("cert.p12")
+            .createReadStream();
+
+        const [cert, userData] = await Promise.all([
+          streamToBuffer(certStream),
+          snap.ref.parent.parent?.get().then((res) => res.data()),
+        ]);
         const data = snap.data();
         const file = getStorage()
             .bucket("heshbonit-invoices")
@@ -58,6 +64,8 @@ functions
           format: "A4",
         });
 
+        await browser.close();
+
         const pdfWithPlaceholder = plainAddPlaceholder({
           pdfBuffer,
           reason: "Signed Certificate",
@@ -75,10 +83,21 @@ functions
 
         await file.save(signedPdf, {contentType: "application/pdf"});
 
-        await browser.close();
-
         logger.info("invoice created");
       } catch (err) {
         logger.error(err);
       }
     });
+
+type Bucket = ReturnType<Storage["bucket"]>;
+type File = ReturnType<Bucket["file"]>;
+type Readable = ReturnType<File["createReadStream"]>;
+async function streamToBuffer(stream: Readable): Promise<Buffer> {
+  const chunks = [];
+
+  for await (const data of stream) {
+    chunks.push(data);
+  }
+
+  return Buffer.concat(chunks);
+}

@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build
-        run: npm ci && npm run build
+        run: npm ci
         working-directory: ./functions
       - name: Deploy
         run: npm run deploy -- --token "${{ secrets.FIREBASE_TOKEN }}"
