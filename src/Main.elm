@@ -2,11 +2,11 @@ port module Main exposing (main)
 
 import Browser
 import Browser.Navigation exposing (Key, load, pushUrl)
-import Css exposing (absolute, alignItems, backgroundColor, border3, borderRadius, color, column, displayFlex, flexDirection, flexGrow, height, left, listStyle, marginBottom, none, num, padding, pct, position, px, relative, rem, rgb, solid)
+import Css exposing (absolute, alignItems, backgroundColor, border3, borderRadius, color, column, displayFlex, flexDirection, flexGrow, height, left, listStyle, marginBottom, none, num, padding, pct, position, px, relative, rgb, solid)
 import Date exposing (Date, toDataString, toShortString)
 import DesignTokens exposing (elevation)
 import Html.Styled as Styled exposing (..)
-import Html.Styled.Attributes exposing (attribute, css, datetime, href, src)
+import Html.Styled.Attributes exposing (attribute, css, datetime, disabled, href, src)
 import Html.Styled.Events exposing (onClick)
 import Invoices as Invoices exposing (InvoiceData, Invoices, invoicesReceiver)
 import Json.Decode
@@ -16,6 +16,7 @@ import Pages.CreateUser
 import Route
 import Url exposing (Url)
 import UserData exposing (UserData, setUserData, userDataReceiver)
+import Html.Styled.Attributes exposing (target, rel)
 
 
 port signOut : () -> Cmd msg
@@ -364,6 +365,11 @@ viewInvoice uid num invoices userData =
     let
         maybeInvoice =
             Maybe.andThen (Invoices.get num) invoices
+
+        downloadLink : Maybe String -> Html Msg
+        downloadLink =
+            Maybe.withDefault (span [ css [ color (rgb 140 140 140) ] ] [ text "⬇️" ]) <<
+            Maybe.map (\url -> a [ href url, target "_blank", rel "noreferrer noopener" ] [ text "⬇️" ])
     in
     main_ [] <|
         [ h2 [] [ text userData.name, a [ href <| Route.home uid ] [ text "❌" ] ]
@@ -381,7 +387,7 @@ viewInvoice uid num invoices userData =
                         [ p [] [ h4 [] [ text "עבור" ], text invoice.description ]
                         , p [] [ "סה\"כ: " ++ String.fromFloat invoice.amount ++ "₪" |> text ]
                         , viewDate invoice.date
-                        , button [ onClick DownloadInvoice ] [ text "⬇️" ]
+                        , downloadLink invoice.downloadUrl
                         ]
                )
 

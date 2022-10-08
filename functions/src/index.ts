@@ -81,12 +81,22 @@ functions
             {asn1StrictParsing: true, passphrase: "Aa123456"}
         );
 
-        await file.save(
-            Buffer.from(signedPdf),
-            {contentType: "application/pdf"},
-        );
+        const expires = new Date();
+        expires.setHours(expires.getHours() + 1);
+
+        const [downloadUrl] = await Promise.all([
+          file.getSignedUrl({action: "read", expires}),
+          file.save(
+              Buffer.from(signedPdf),
+              {contentType: "application/pdf"},
+          ),
+        ]);
 
         logger.info("invoice created");
+
+        snap.ref.update({downloadUrl});
+
+        logger.debug("added downloadUrl to doc");
       } catch (err) {
         logger.error(err);
       }

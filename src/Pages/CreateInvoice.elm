@@ -134,7 +134,7 @@ mapMsg toInternalMsg toSubmitMsg msg =
                     toInternalMsg msg
 
                 Just amount ->
-                    toSubmitMsg { description = model.description, amount = amount, date = Date.fromDataString model.date }
+                    toSubmitMsg { description = model.description, amount = amount, date = Date.fromDataString model.date, downloadUrl = Nothing }
 
         _ ->
             toInternalMsg msg

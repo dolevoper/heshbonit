@@ -19,6 +19,7 @@ type alias InvoiceData =
     { date : Result String Date
     , amount : Float
     , description : String
+    , downloadUrl : Maybe String
     }
 
 
@@ -56,6 +57,7 @@ create invoice invoices =
                 , description = invoice.description
                 , date = Result.map Date.toDataString invoice.date |> Result.withDefault ""
                 , amount = invoice.amount
+                , downloadUrl = invoice.downloadUrl
                 }
             )
 
@@ -97,7 +99,8 @@ get num invoices =
 
 
 type alias ServerInvoice =
-    { id : String
+    { downloadUrl : Maybe String
+    , id : String
     , date : String
     , amount : Float
     , description : String
@@ -105,17 +108,25 @@ type alias ServerInvoice =
 
 
 type alias ProcesedServerInvoice =
-    { id : Int, date : Result String Date, description : String, amount : Float }
+    { id : Int, date : Result String Date, description : String, amount : Float, downloadUrl : Maybe String }
 
 
 decoder : Json.Decoder (List ServerInvoice)
 decoder =
     Json.list <|
-        Json.map4 ServerInvoice
-            (Json.field "id" Json.string)
-            (Json.field "date" Json.string)
-            (Json.field "amount" Json.float)
-            (Json.field "description" Json.string)
+        Json.oneOf
+            [ Json.map5 ServerInvoice
+                (Json.field "downloadUrl" (Json.maybe Json.string))
+                (Json.field "id" Json.string)
+                (Json.field "date" Json.string)
+                (Json.field "amount" Json.float)
+                (Json.field "description" Json.string)
+            , Json.map4 (ServerInvoice Nothing)
+                (Json.field "id" Json.string)
+                (Json.field "date" Json.string)
+                (Json.field "amount" Json.float)
+                (Json.field "description" Json.string)
+            ]
 
 
 fromJson : Json.Value -> Result String Invoices
@@ -123,7 +134,7 @@ fromJson v =
     let
         postProcessJson : ServerInvoice -> Maybe ProcesedServerInvoice
         postProcessJson i =
-            String.toInt i.id |> Maybe.map (\a -> { id = a, date = Date.fromDataString i.date, description = i.description, amount = i.amount })
+            String.toInt i.id |> Maybe.map (\a -> { id = a, date = Date.fromDataString i.date, description = i.description, amount = i.amount, downloadUrl = i.downloadUrl })
 
         foo : ProcesedServerInvoice -> ( Int, Result String Invoices ) -> ( Int, Result String Invoices )
         foo i ( prevId, res ) =
@@ -131,7 +142,7 @@ fromJson v =
                 ( i.id, Err "נמצאו מזהי קבלות לא עוקבים" )
 
             else
-                ( i.id, Result.map (Tuple.first << create { date = i.date, description = i.description, amount = i.amount }) res )
+                ( i.id, Result.map (Tuple.first << create { date = i.date, description = i.description, amount = i.amount, downloadUrl = i.downloadUrl }) res )
 
         fromList : List ProcesedServerInvoice -> Result String Invoices
         fromList l =
