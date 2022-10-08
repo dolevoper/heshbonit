@@ -78,7 +78,7 @@ functions
         const signedPdf = signer.sign(
             pdfWithPlaceholder,
             cert,
-            {asn1StrictParsing: true}
+            {asn1StrictParsing: true, passphrase: "Aa123456"}
         );
 
         await file.save(signedPdf, {contentType: "application/pdf"});
