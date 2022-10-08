@@ -81,7 +81,10 @@ functions
             {asn1StrictParsing: true, passphrase: "Aa123456"}
         );
 
-        await file.save(signedPdf, {contentType: "application/pdf"});
+        await file.save(
+            Buffer.from(signedPdf),
+            {contentType: "application/pdf"},
+        );
 
         logger.info("invoice created");
       } catch (err) {
