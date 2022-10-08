@@ -81,8 +81,8 @@ functions
             {asn1StrictParsing: true, passphrase: "Aa123456"}
         );
 
-        const expires = new Date();
-        expires.setHours(expires.getHours() + 1);
+        // const expires = new Date();
+        // expires.setHours(expires.getHours() + 1);
 
         await file.save(
             Buffer.from(signedPdf),
@@ -91,7 +91,8 @@ functions
 
         logger.info("invoice created");
 
-        const downloadUrl = await file.getSignedUrl({action: "read", expires});
+        const [downloadUrl] = await file
+            .getSignedUrl({action: "read", expires: "2030-12-30"});
         await snap.ref.update({downloadUrl});
 
         logger.debug("added downloadUrl to doc");
