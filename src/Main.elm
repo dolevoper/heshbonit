@@ -366,10 +366,10 @@ viewInvoice uid num invoices userData =
         maybeInvoice =
             Maybe.andThen (Invoices.get num) invoices
 
-        downloadLink : Maybe String -> Html Msg
+        downloadLink : Maybe String -> List (Html Msg)
         downloadLink =
-            Maybe.withDefault (span [ css [ color (rgb 140 140 140) ] ] [ text "⬇️" ]) <<
-            Maybe.map (\url -> a [ href url, target "_blank", rel "noreferrer noopener" ] [ text "⬇️" ])
+            Maybe.withDefault [] <<
+            Maybe.map (\url -> [a [ href url, target "_blank", rel "noreferrer noopener" ] [ text "⬇️" ]])
     in
     main_ [] <|
         [ h2 [] [ text userData.name, a [ href <| Route.home uid ] [ text "❌" ] ]
@@ -387,8 +387,7 @@ viewInvoice uid num invoices userData =
                         [ p [] [ h4 [] [ text "עבור" ], text invoice.description ]
                         , p [] [ "סה\"כ: " ++ String.fromFloat invoice.amount ++ "₪" |> text ]
                         , viewDate invoice.date
-                        , downloadLink invoice.downloadUrl
-                        ]
+                        ] ++ downloadLink invoice.downloadUrl
                )
 
 

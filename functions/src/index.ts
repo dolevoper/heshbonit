@@ -84,17 +84,15 @@ functions
         const expires = new Date();
         expires.setHours(expires.getHours() + 1);
 
-        const [downloadUrl] = await Promise.all([
-          file.getSignedUrl({action: "read", expires}),
-          file.save(
-              Buffer.from(signedPdf),
-              {contentType: "application/pdf"},
-          ),
-        ]);
+        await file.save(
+            Buffer.from(signedPdf),
+            {contentType: "application/pdf"},
+        );
 
         logger.info("invoice created");
 
-        snap.ref.update({downloadUrl});
+        const downloadUrl = await file.getSignedUrl({action: "read", expires});
+        await snap.ref.update({downloadUrl});
 
         logger.debug("added downloadUrl to doc");
       } catch (err) {
