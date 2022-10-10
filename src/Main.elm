@@ -6,9 +6,10 @@ import Css exposing (absolute, alignItems, backgroundColor, border3, borderRadiu
 import Date exposing (Date, toDataString, toShortString)
 import DesignTokens exposing (elevation)
 import Html.Styled as Styled exposing (..)
-import Html.Styled.Attributes exposing (attribute, css, datetime, disabled, href, src)
+import Html.Styled.Attributes exposing (attribute, css, datetime, href, src)
 import Html.Styled.Events exposing (onClick)
 import Invoices as Invoices exposing (InvoiceData, Invoices, invoicesReceiver)
+import Invoices.Status as Status
 import Json.Decode
 import LoggedInUser exposing (LoggedInUser, userLoggedIn)
 import Pages.CreateInvoice
@@ -16,7 +17,6 @@ import Pages.CreateUser
 import Route
 import Url exposing (Url)
 import UserData exposing (UserData, setUserData, userDataReceiver)
-import Html.Styled.Attributes exposing (target, rel)
 
 
 port signOut : () -> Cmd msg
@@ -365,11 +365,6 @@ viewInvoice uid num invoices userData =
     let
         maybeInvoice =
             Maybe.andThen (Invoices.get num) invoices
-
-        downloadLink : Maybe String -> List (Html Msg)
-        downloadLink =
-            Maybe.withDefault [] <<
-            Maybe.map (\url -> [a [ href url, target "_blank", rel "noreferrer noopener" ] [ text "⬇️" ]])
     in
     main_ [] <|
         [ h2 [] [ text userData.name, a [ href <| Route.home uid ] [ text "❌" ] ]
@@ -387,7 +382,14 @@ viewInvoice uid num invoices userData =
                         [ p [] [ h4 [] [ text "עבור" ], text invoice.description ]
                         , p [] [ "סה\"כ: " ++ String.fromFloat invoice.amount ++ "₪" |> text ]
                         , viewDate invoice.date
-                        ] ++ downloadLink invoice.downloadUrl
+                        ]
+                            ++ (if invoice.status == Status.Created then
+                                    [ button [ onClick DownloadInvoice ] [ text "⬇️" ]
+                                    ]
+
+                                else
+                                    []
+                               )
                )
 
 

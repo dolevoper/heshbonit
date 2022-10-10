@@ -1,25 +1,27 @@
 port module Invoices exposing (InvoiceData, Invoices, create, defaultBase, empty, fromJson, get, invoicesReceiver, isEmpty, nextInvoiceNum, registerInvoices, toList)
 
 import Date exposing (Date)
-import Json.Decode as Json
+import Invoices.Status as Status exposing (Status)
+import Json.Decode as D exposing (Decoder, Value)
+import Json.Encode as E
 import MaybeList
 import String exposing (fromList)
 
 
-port invoicesReceiver : (Json.Value -> msg) -> Sub msg
+port invoicesReceiver : (Value -> msg) -> Sub msg
 
 
 port registerInvoices : String -> Cmd msg
 
 
-port createInvoice : ServerInvoice -> Cmd msg
+port createInvoice : Value -> Cmd msg
 
 
 type alias InvoiceData =
     { date : Result String Date
     , amount : Float
     , description : String
-    , downloadUrl : Maybe String
+    , status : Status
     }
 
 
@@ -52,13 +54,13 @@ create invoice invoices =
     case invoices of
         Invoices b existingRecords ->
             ( existingRecords ++ [ invoice ] |> Invoices b
-            , createInvoice
-                { id = String.fromInt <| b + List.length existingRecords
-                , description = invoice.description
-                , date = Result.map Date.toDataString invoice.date |> Result.withDefault ""
-                , amount = invoice.amount
-                , downloadUrl = invoice.downloadUrl
-                }
+            , createInvoice <| encode (b + List.length existingRecords) invoice
+              -- { id = String.fromInt <| b + List.length existingRecords
+              -- , description = invoice.description
+              -- , date = Result.map Date.toDataString invoice.date |> Result.withDefault ""
+              -- , amount = invoice.amount
+              -- , status = Status.encoder invoice.status
+              -- }
             )
 
 
@@ -99,42 +101,40 @@ get num invoices =
 
 
 type alias ServerInvoice =
-    { downloadUrl : Maybe String
-    , id : String
+    { id : String
     , date : String
     , amount : Float
     , description : String
+    , status : Status
     }
 
 
 type alias ProcesedServerInvoice =
-    { id : Int, date : Result String Date, description : String, amount : Float, downloadUrl : Maybe String }
+    { id : Int, date : Result String Date, description : String, amount : Float, status : Status }
 
 
-decoder : Json.Decoder (List ServerInvoice)
+decoder : Decoder (List ServerInvoice)
 decoder =
-    Json.list <|
-        Json.oneOf
-            [ Json.map5 ServerInvoice
-                (Json.field "downloadUrl" (Json.maybe Json.string))
-                (Json.field "id" Json.string)
-                (Json.field "date" Json.string)
-                (Json.field "amount" Json.float)
-                (Json.field "description" Json.string)
-            , Json.map4 (ServerInvoice Nothing)
-                (Json.field "id" Json.string)
-                (Json.field "date" Json.string)
-                (Json.field "amount" Json.float)
-                (Json.field "description" Json.string)
-            ]
+    D.list <|
+        D.map5 ServerInvoice
+            (D.field "id" D.string)
+            (D.field "date" D.string)
+            (D.field "amount" D.float)
+            (D.field "description" D.string)
+            (D.field "status" Status.decoder)
 
 
-fromJson : Json.Value -> Result String Invoices
+encode : Int -> InvoiceData -> Value
+encode id data =
+    E.string ""
+
+
+fromJson : Value -> Result String Invoices
 fromJson v =
     let
         postProcessJson : ServerInvoice -> Maybe ProcesedServerInvoice
         postProcessJson i =
-            String.toInt i.id |> Maybe.map (\a -> { id = a, date = Date.fromDataString i.date, description = i.description, amount = i.amount, downloadUrl = i.downloadUrl })
+            String.toInt i.id |> Maybe.map (\a -> { id = a, date = Date.fromDataString i.date, description = i.description, amount = i.amount, status = i.status })
 
         foo : ProcesedServerInvoice -> ( Int, Result String Invoices ) -> ( Int, Result String Invoices )
         foo i ( prevId, res ) =
@@ -142,7 +142,7 @@ fromJson v =
                 ( i.id, Err "נמצאו מזהי קבלות לא עוקבים" )
 
             else
-                ( i.id, Result.map (Tuple.first << create { date = i.date, description = i.description, amount = i.amount, downloadUrl = i.downloadUrl }) res )
+                ( i.id, Result.map (Tuple.first << create { date = i.date, description = i.description, amount = i.amount, status = i.status }) res )
 
         fromList : List ProcesedServerInvoice -> Result String Invoices
         fromList l =
@@ -153,9 +153,9 @@ fromJson v =
                 Just { id } ->
                     List.foldl foo ( id - 1, Ok <| empty id ) l |> Tuple.second
     in
-    case Json.decodeValue decoder v of
+    case D.decodeValue decoder v of
         Err err ->
-            Err (Json.errorToString err)
+            Err (D.errorToString err)
 
         Ok l ->
             case l |> List.map postProcessJson |> MaybeList.fromListMaybe of

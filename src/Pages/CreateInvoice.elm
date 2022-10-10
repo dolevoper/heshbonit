@@ -2,11 +2,11 @@ module Pages.CreateInvoice exposing (Model, Msg, init, mapMsg, update, view)
 
 import Date
 import Forms exposing (NumericInputType(..), numericInput)
-import Html
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (href, required, type_, value)
 import Html.Styled.Events exposing (onInput, onSubmit)
 import Invoices exposing (InvoiceData, Invoices)
+import Invoices.Status as Status
 import Route
 import Task
 import Time exposing (Posix, Zone)
@@ -134,7 +134,7 @@ mapMsg toInternalMsg toSubmitMsg msg =
                     toInternalMsg msg
 
                 Just amount ->
-                    toSubmitMsg { description = model.description, amount = amount, date = Date.fromDataString model.date, downloadUrl = Nothing }
+                    toSubmitMsg { description = model.description, amount = amount, date = Date.fromDataString model.date, status = Status.New }
 
         _ ->
             toInternalMsg msg
