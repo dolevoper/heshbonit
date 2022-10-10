@@ -126,7 +126,13 @@ decoder =
 
 encode : Int -> InvoiceData -> Value
 encode id data =
-    E.string ""
+    E.object
+        [ ("id", E.string <| String.fromInt id)
+        , ("date", E.string <| (Result.map Date.toDataString data.date |> Result.withDefault ""))
+        , ("amount", E.float data.amount)
+        , ("description", E.string data.description)
+        , ("status", Status.encoder data.status)
+        ]
 
 
 fromJson : Value -> Result String Invoices
