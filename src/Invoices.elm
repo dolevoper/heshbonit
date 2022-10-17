@@ -1,4 +1,4 @@
-port module Invoices exposing (InvoiceData, Invoices, create, defaultBase, empty, fromJson, get, invoicesReceiver, isEmpty, nextInvoiceNum, registerInvoices, toList)
+port module Invoices exposing (InvoiceData, Invoices, create, defaultBase, empty, fromJson, get, invoicesReceiver, isEmpty, nextInvoiceNum, toList)
 
 import Date exposing (Date)
 import Invoices.Status as Status exposing (Status)
@@ -9,9 +9,6 @@ import String exposing (fromList)
 
 
 port invoicesReceiver : (Value -> msg) -> Sub msg
-
-
-port registerInvoices : String -> Cmd msg
 
 
 port createInvoice : Value -> Cmd msg
@@ -127,11 +124,11 @@ decoder =
 encode : Int -> InvoiceData -> Value
 encode id data =
     E.object
-        [ ("id", E.string <| String.fromInt id)
-        , ("date", E.string <| (Result.map Date.toDataString data.date |> Result.withDefault ""))
-        , ("amount", E.float data.amount)
-        , ("description", E.string data.description)
-        , ("status", Status.encoder data.status)
+        [ ( "id", E.string <| String.fromInt id )
+        , ( "date", E.string <| (Result.map Date.toDataString data.date |> Result.withDefault "") )
+        , ( "amount", E.float data.amount )
+        , ( "description", E.string data.description )
+        , ( "status", Status.encoder data.status )
         ]
 
 

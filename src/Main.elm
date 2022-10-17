@@ -17,9 +17,13 @@ import Pages.CreateUser
 import Route
 import Url exposing (Url)
 import UserData exposing (UserData, setUserData, userDataReceiver)
+import Pages.CreateClient
 
 
 port signOut : () -> Cmd msg
+
+
+port registerUser : String -> Cmd msg
 
 
 port downloadInvoice : Int -> Cmd msg
@@ -42,6 +46,7 @@ type Model
     | Invoice Session Int
     | CreateInvoice Session Pages.CreateInvoice.Model
     | CreateUser Session Model Pages.CreateUser.Model
+    | CreateClient Session Pages.CreateClient.Model
     | NotFound Session
     | Error Session String
 
@@ -59,6 +64,9 @@ session model =
             s
 
         CreateUser s _ _ ->
+            s
+
+        CreateClient s _ ->
             s
 
         NotFound s ->
@@ -79,6 +87,7 @@ type Msg
     | NewInvoice InvoiceData
     | CreateInvoiceMsg Pages.CreateInvoice.Msg
     | CreateUserMsg Pages.CreateUser.Msg
+    | CreateClientMsg Pages.CreateClient.Msg
     | UserCreated UserData
     | DownloadInvoice
 
@@ -95,10 +104,10 @@ fromUrl s url =
         buildCommands uid extraCommands =
             case ( extraCommands, s.invoices ) of
                 ( [], Nothing ) ->
-                    Invoices.registerInvoices uid
+                    registerUser uid
 
                 ( _, Nothing ) ->
-                    Cmd.batch <| Invoices.registerInvoices uid :: extraCommands
+                    Cmd.batch <| registerUser uid :: extraCommands
 
                 ( [], _ ) ->
                     Cmd.none
@@ -126,6 +135,9 @@ fromUrl s url =
                         (CreateInvoice s)
                         (Cmd.map handleCreateInvoiceMsg >> List.singleton >> buildCommands uid)
                         (Pages.CreateInvoice.init uid)
+
+                Route.CreateClient uid ->
+                    ( CreateClient s <| Pages.CreateClient.init uid, buildCommands uid [] )
 
 
 init : () -> Url -> Key -> ( Model, Cmd Msg )
@@ -159,6 +171,9 @@ update msg model =
 
                 CreateUser _ pm im ->
                     CreateUser s pm im
+
+                CreateClient _ f ->
+                    CreateClient s f
 
                 NotFound _ ->
                     NotFound s
@@ -214,6 +229,9 @@ update msg model =
         ( CreateInvoice s m, CreateInvoiceMsg msg_ ) ->
             ( CreateInvoice s <| Pages.CreateInvoice.update msg_ m, Cmd.none )
 
+        ( CreateClient s m, CreateClientMsg msg_ ) ->
+            ( CreateClient s <| Pages.CreateClient.update msg_ m, Cmd.none )
+
         ( CreateInvoice _ _, NewInvoice m ) ->
             case currentSession.invoices of
                 Nothing ->
@@ -235,6 +253,9 @@ update msg model =
             ( setSession { currentSession | userData = Just userData } pm, setUserData userData )
 
         ( _, CreateInvoiceMsg _ ) ->
+            ( model, Cmd.none )
+
+        ( _, CreateClientMsg _ ) ->
             ( model, Cmd.none )
 
         ( _, NewInvoice _ ) ->
@@ -321,6 +342,9 @@ viewMain model =
 
         CreateInvoice { invoices } m ->
             Pages.CreateInvoice.view invoices m |> Styled.map handleCreateInvoiceMsg
+
+        CreateClient _ m ->
+            Pages.CreateClient.view m |> Styled.map CreateClientMsg
 
         CreateUser _ _ m ->
             Pages.CreateUser.view m |> Styled.map (Pages.CreateUser.mapMsg CreateUserMsg UserCreated)

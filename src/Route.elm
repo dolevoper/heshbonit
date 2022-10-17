@@ -1,4 +1,4 @@
-module Route exposing (Route(..), createInvoice, fromUrl, home, invoice, uidFromUrl)
+module Route exposing (Route(..), createClient, createInvoice, fromUrl, home, invoice, uidFromUrl)
 
 import Url exposing (Url)
 import Url.Builder
@@ -9,6 +9,7 @@ type Route
     = Home String
     | Invoice String Int
     | CreateInvoice String
+    | CreateClient String
 
 
 parser : Parser (Route -> a) a
@@ -17,6 +18,7 @@ parser =
         [ map Home string
         , map Invoice (string </> s "invoice" </> int)
         , map CreateInvoice (string </> s "createInvoice")
+        , map CreateClient (string </> s "createClient")
         ]
 
 
@@ -38,6 +40,11 @@ invoice uid invoiceId =
 createInvoice : String -> String
 createInvoice uid =
     Url.Builder.absolute [ uid, "createInvoice" ] []
+
+
+createClient : String -> String
+createClient uid =
+    Url.Builder.absolute [ uid, "createClient" ] []
 
 
 uidFromUrl : Url -> Maybe String

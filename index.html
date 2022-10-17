@@ -27,7 +27,7 @@
         let userListener;
         let invoicesListener;
 
-        app.ports.registerInvoices.subscribe(uid => {
+        app.ports.registerUser.subscribe(uid => {
             userListener?.();
             invoicesListener?.();
 
