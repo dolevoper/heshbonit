@@ -11,19 +11,19 @@ import Html.Styled.Events exposing (onClick)
 import Invoices as Invoices exposing (InvoiceData, Invoices, invoicesReceiver)
 import Invoices.Status as Status
 import Json.Decode
-import LoggedInUser exposing (LoggedInUser, userLoggedIn)
+import User exposing (User, userLoggedIn)
 import Pages.CreateInvoice
-import Pages.CreateUser
+import Pages.CreateAccount
 import Route
 import Url exposing (Url)
-import UserData exposing (UserData, setUserData, userDataReceiver)
+import AccountData exposing (AccountData, setAccountData, accountDataReceiver)
 import Pages.CreateClient
 
 
 port signOut : () -> Cmd msg
 
 
-port registerUser : String -> Cmd msg
+port registerAccount : String -> Cmd msg
 
 
 port downloadInvoice : Int -> Cmd msg
@@ -35,9 +35,9 @@ port firebaseError : (String -> msg) -> Sub msg
 type alias Session =
     { navKey : Key
     , uid : String
-    , userData : Maybe UserData
+    , accountData : Maybe AccountData
     , invoices : Maybe Invoices
-    , loggedInUser : Maybe LoggedInUser
+    , user : Maybe User
     }
 
 
@@ -45,7 +45,7 @@ type Model
     = Home Session
     | Invoice Session Int
     | CreateInvoice Session Pages.CreateInvoice.Model
-    | CreateUser Session Model Pages.CreateUser.Model
+    | CreateAccount Session Model Pages.CreateAccount.Model
     | CreateClient Session Pages.CreateClient.Model
     | NotFound Session
     | Error Session String
@@ -63,7 +63,7 @@ session model =
         CreateInvoice s _ ->
             s
 
-        CreateUser s _ _ ->
+        CreateAccount s _ _ ->
             s
 
         CreateClient s _ ->
@@ -79,16 +79,16 @@ session model =
 type Msg
     = LinkClicked Browser.UrlRequest
     | UrlChanged Url
-    | ReceviedUserData Json.Decode.Value
+    | ReceviedAccountData Json.Decode.Value
     | ReceivedInvoices Json.Decode.Value
     | UserLoggedIn Json.Decode.Value
     | SignOut
     | FirebaseError String
     | NewInvoice InvoiceData
     | CreateInvoiceMsg Pages.CreateInvoice.Msg
-    | CreateUserMsg Pages.CreateUser.Msg
+    | CreateAccountMsg Pages.CreateAccount.Msg
     | CreateClientMsg Pages.CreateClient.Msg
-    | UserCreated UserData
+    | AccountCreated AccountData
     | DownloadInvoice
 
 
@@ -104,10 +104,10 @@ fromUrl s url =
         buildCommands uid extraCommands =
             case ( extraCommands, s.invoices ) of
                 ( [], Nothing ) ->
-                    registerUser uid
+                    registerAccount uid
 
                 ( _, Nothing ) ->
-                    Cmd.batch <| registerUser uid :: extraCommands
+                    Cmd.batch <| registerAccount uid :: extraCommands
 
                 ( [], _ ) ->
                     Cmd.none
@@ -169,8 +169,8 @@ update msg model =
                 CreateInvoice _ f ->
                     CreateInvoice s f
 
-                CreateUser _ pm im ->
-                    CreateUser s pm im
+                CreateAccount _ pm im ->
+                    CreateAccount s pm im
 
                 CreateClient _ f ->
                     CreateClient s f
@@ -193,16 +193,16 @@ update msg model =
         ( _, UrlChanged url ) ->
             fromUrl currentSession url
 
-        ( _, ReceviedUserData v ) ->
-            case UserData.fromJson v of
+        ( _, ReceviedAccountData v ) ->
+            case AccountData.fromJson v of
                 Err str ->
                     ( Error currentSession str, Cmd.none )
 
                 Ok Nothing ->
-                    ( CreateUser currentSession model Pages.CreateUser.init, Cmd.none )
+                    ( CreateAccount currentSession model Pages.CreateAccount.init, Cmd.none )
 
                 Ok userData ->
-                    ( setSession { currentSession | userData = userData } model, Cmd.none )
+                    ( setSession { currentSession | accountData = userData } model, Cmd.none )
 
         ( _, ReceivedInvoices v ) ->
             case Invoices.fromJson v of
@@ -219,12 +219,12 @@ update msg model =
             ( Error currentSession err, Cmd.none )
 
         ( _, UserLoggedIn value ) ->
-            case LoggedInUser.fromJson value of
+            case User.fromJson value of
                 Err err ->
                     ( Error currentSession err, Cmd.none )
 
-                Ok loggedInUser ->
-                    ( setSession { currentSession | loggedInUser = Just loggedInUser } model, Cmd.none )
+                Ok user ->
+                    ( setSession { currentSession | user = Just user } model, Cmd.none )
 
         ( CreateInvoice s m, CreateInvoiceMsg msg_ ) ->
             ( CreateInvoice s <| Pages.CreateInvoice.update msg_ m, Cmd.none )
@@ -246,11 +246,11 @@ update msg model =
         ( Invoice _ num, DownloadInvoice ) ->
             ( model, downloadInvoice num )
 
-        ( CreateUser _ pm m, CreateUserMsg msg_ ) ->
-            ( CreateUser currentSession pm <| Pages.CreateUser.update msg_ m, Cmd.none )
+        ( CreateAccount _ pm m, CreateAccountMsg msg_ ) ->
+            ( CreateAccount currentSession pm <| Pages.CreateAccount.update msg_ m, Cmd.none )
 
-        ( CreateUser _ pm _, UserCreated userData ) ->
-            ( setSession { currentSession | userData = Just userData } pm, setUserData userData )
+        ( CreateAccount _ pm _, AccountCreated userData ) ->
+            ( setSession { currentSession | accountData = Just userData } pm, setAccountData userData )
 
         ( _, CreateInvoiceMsg _ ) ->
             ( model, Cmd.none )
@@ -264,17 +264,17 @@ update msg model =
         ( _, DownloadInvoice ) ->
             ( model, Cmd.none )
 
-        ( _, CreateUserMsg _ ) ->
+        ( _, CreateAccountMsg _ ) ->
             ( model, Cmd.none )
 
-        ( _, UserCreated _ ) ->
+        ( _, AccountCreated _ ) ->
             ( model, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
-        [ userDataReceiver ReceviedUserData
+        [ accountDataReceiver ReceviedAccountData
         , invoicesReceiver ReceivedInvoices
         , firebaseError FirebaseError
         , userLoggedIn UserLoggedIn
@@ -284,16 +284,16 @@ subscriptions _ =
 view : Model -> Browser.Document Msg
 view model =
     { title = "חשבונית"
-    , body = [ viewHeader <| .loggedInUser <| session model, viewMain model ] |> List.map toUnstyled
+    , body = [ viewHeader <| .user <| session model, viewMain model ] |> List.map toUnstyled
     }
 
 
-viewHeader : Maybe LoggedInUser -> Html Msg
-viewHeader loggedInUser =
+viewHeader : Maybe User -> Html Msg
+viewHeader user =
     let
         accountDetails : Html Msg
         accountDetails =
-            case loggedInUser of
+            case user of
                 Nothing ->
                     section [] [ span [] [ text "טוען..." ] ]
 
@@ -329,16 +329,16 @@ viewMain model =
         loading =
             main_ [] [ p [] [ text "טוען..." ] ]
 
-        handleUserData : (UserData -> Html Msg) -> Maybe UserData -> Html Msg
-        handleUserData v =
+        handleAccountData : (AccountData -> Html Msg) -> Maybe AccountData -> Html Msg
+        handleAccountData v =
             Maybe.withDefault loading << Maybe.map v
     in
     case model of
         Home { uid, invoices } ->
             viewHome uid invoices
 
-        Invoice { uid, invoices, userData } num ->
-            handleUserData (viewInvoice uid num invoices) userData
+        Invoice { uid, invoices, accountData } num ->
+            handleAccountData (viewInvoice uid num invoices) accountData
 
         CreateInvoice { invoices } m ->
             Pages.CreateInvoice.view invoices m |> Styled.map handleCreateInvoiceMsg
@@ -346,8 +346,8 @@ viewMain model =
         CreateClient _ m ->
             Pages.CreateClient.view m |> Styled.map CreateClientMsg
 
-        CreateUser _ _ m ->
-            Pages.CreateUser.view m |> Styled.map (Pages.CreateUser.mapMsg CreateUserMsg UserCreated)
+        CreateAccount _ _ m ->
+            Pages.CreateAccount.view m |> Styled.map (Pages.CreateAccount.mapMsg CreateAccountMsg AccountCreated)
 
         NotFound { uid } ->
             main_ [] <| viewNotFound uid "הדף שחיפשת לא קיים."
@@ -384,7 +384,7 @@ viewHome uid invoices =
         ]
 
 
-viewInvoice : String -> Int -> Maybe Invoices -> UserData -> Html Msg
+viewInvoice : String -> Int -> Maybe Invoices -> AccountData -> Html Msg
 viewInvoice uid num invoices userData =
     let
         maybeInvoice =

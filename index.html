@@ -27,7 +27,7 @@
         let userListener;
         let invoicesListener;
 
-        app.ports.registerUser.subscribe(uid => {
+        app.ports.registerAccount.subscribe(uid => {
             userListener?.();
             invoicesListener?.();
 
@@ -36,7 +36,7 @@
 
             userListener = onSnapshot(
                 user,
-                doc => app.ports.userDataReceiver.send(doc.data()),
+                doc => app.ports.accountDataReceiver.send(doc.data()),
                 err => app.ports.firebaseError.send(err.toString())
             );
             
@@ -46,7 +46,7 @@
                 err => app.ports.firebaseError.send(err.toString())
             );
 
-            app.ports.setUserData.subscribe(async data => {
+            app.ports.setAccountData.subscribe(async data => {
                 try {
                     await setDoc(user, data);
                 } catch (err) {

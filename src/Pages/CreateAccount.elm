@@ -1,10 +1,10 @@
-module Pages.CreateUser exposing (Model, Msg, init, mapMsg, update, view)
+module Pages.CreateAccount exposing (Model, Msg, init, mapMsg, update, view)
 
 import Forms exposing (NumericInputType(..), numericInput)
 import Html.Styled exposing (..)
 import Html.Styled.Attributes exposing (required, type_, value)
 import Html.Styled.Events exposing (onInput, onSubmit)
-import UserData exposing (UserData)
+import AccountData exposing (AccountData)
 
 
 type alias Model =
@@ -54,7 +54,7 @@ view model =
         ]
 
 
-mapMsg : (Msg -> msg) -> (UserData -> msg) -> Msg -> msg
+mapMsg : (Msg -> msg) -> (AccountData -> msg) -> Msg -> msg
 mapMsg toInternalMsg toSubmitMsg msg =
     case msg of
         Submit model ->
