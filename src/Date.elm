@@ -1,5 +1,7 @@
-module Date exposing (Date, date, fromDataString, toDataString, toShortString)
+module Date exposing (Date, date, fromDataString, toDataString, toShortString, view)
 
+import Html.Styled exposing (Html, span, text, time)
+import Html.Styled.Attributes exposing (datetime)
 import MaybeList
 
 
@@ -106,3 +108,13 @@ toDataString d =
     case d of
         Date { day, month, year } ->
             List.map String.fromInt [ year, month, day ] |> String.join "-"
+
+
+view : Result String Date -> Html msg
+view rd =
+    case rd of
+        Ok d ->
+            time [ toDataString d |> datetime ] [ toShortString d |> text ]
+
+        Err _ ->
+            span [] [ text "INVALID DATE" ]

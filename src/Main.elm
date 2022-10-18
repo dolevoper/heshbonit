@@ -1,23 +1,25 @@
 port module Main exposing (main)
 
+import AccountData exposing (AccountData, accountDataReceiver, setAccountData)
 import Browser
 import Browser.Navigation exposing (Key, load, pushUrl)
 import Css exposing (absolute, alignItems, backgroundColor, border3, borderRadius, color, column, displayFlex, flexDirection, flexGrow, height, left, listStyle, marginBottom, none, num, padding, pct, position, px, relative, rgb, solid)
-import Date exposing (Date, toDataString, toShortString)
 import DesignTokens exposing (elevation)
 import Html.Styled as Styled exposing (..)
-import Html.Styled.Attributes exposing (attribute, css, datetime, href, src)
+import Html.Styled.Attributes exposing (attribute, css, href, src)
 import Html.Styled.Events exposing (onClick)
-import Invoices as Invoices exposing (InvoiceData, Invoices, invoicesReceiver)
-import Invoices.Status as Status
+import Invoices as Invoices exposing (InvoiceData, invoicesReceiver)
 import Json.Decode
-import User exposing (User, userLoggedIn)
-import Pages.CreateInvoice
+import NotFound
 import Pages.CreateAccount
-import Route
-import Url exposing (Url)
-import AccountData exposing (AccountData, setAccountData, accountDataReceiver)
 import Pages.CreateClient
+import Pages.CreateInvoice
+import Pages.Home
+import Pages.Invoice
+import Route
+import Session exposing (Session)
+import Url exposing (Url)
+import User exposing (User, userLoggedIn)
 
 
 port signOut : () -> Cmd msg
@@ -26,24 +28,12 @@ port signOut : () -> Cmd msg
 port registerAccount : String -> Cmd msg
 
 
-port downloadInvoice : Int -> Cmd msg
-
-
 port firebaseError : (String -> msg) -> Sub msg
-
-
-type alias Session =
-    { navKey : Key
-    , uid : String
-    , accountData : Maybe AccountData
-    , invoices : Maybe Invoices
-    , user : Maybe User
-    }
 
 
 type Model
     = Home Session
-    | Invoice Session Int
+    | Invoice Session Pages.Invoice.Model
     | CreateInvoice Session Pages.CreateInvoice.Model
     | CreateAccount Session Model Pages.CreateAccount.Model
     | CreateClient Session Pages.CreateClient.Model
@@ -88,8 +78,8 @@ type Msg
     | CreateInvoiceMsg Pages.CreateInvoice.Msg
     | CreateAccountMsg Pages.CreateAccount.Msg
     | CreateClientMsg Pages.CreateClient.Msg
+    | InvoiceMsg Pages.Invoice.Msg
     | AccountCreated AccountData
-    | DownloadInvoice
 
 
 handleCreateInvoiceMsg : Pages.CreateInvoice.Msg -> Msg
@@ -243,8 +233,8 @@ update msg model =
                             (\ni -> setSession { currentSession | invoices = Just ni } model)
                             (List.singleton >> (++) [ pushUrl currentSession.navKey <| Route.home currentSession.uid ] >> Cmd.batch)
 
-        ( Invoice _ num, DownloadInvoice ) ->
-            ( model, downloadInvoice num )
+        ( Invoice s m, InvoiceMsg msg_ ) ->
+            Pages.Invoice.update msg_ m |> Tuple.mapFirst (Invoice s)
 
         ( CreateAccount _ pm m, CreateAccountMsg msg_ ) ->
             ( CreateAccount currentSession pm <| Pages.CreateAccount.update msg_ m, Cmd.none )
@@ -261,7 +251,7 @@ update msg model =
         ( _, NewInvoice _ ) ->
             ( model, Cmd.none )
 
-        ( _, DownloadInvoice ) ->
+        ( _, InvoiceMsg _ ) ->
             ( model, Cmd.none )
 
         ( _, CreateAccountMsg _ ) ->
@@ -324,21 +314,12 @@ viewHeader user =
 
 viewMain : Model -> Html Msg
 viewMain model =
-    let
-        loading : Html Msg
-        loading =
-            main_ [] [ p [] [ text "טוען..." ] ]
-
-        handleAccountData : (AccountData -> Html Msg) -> Maybe AccountData -> Html Msg
-        handleAccountData v =
-            Maybe.withDefault loading << Maybe.map v
-    in
     case model of
-        Home { uid, invoices } ->
-            viewHome uid invoices
+        Home s ->
+            Pages.Home.view s
 
-        Invoice { uid, invoices, accountData } num ->
-            handleAccountData (viewInvoice uid num invoices) accountData
+        Invoice s m ->
+            Pages.Invoice.view s m |> Styled.map InvoiceMsg
 
         CreateInvoice { invoices } m ->
             Pages.CreateInvoice.view invoices m |> Styled.map handleCreateInvoiceMsg
@@ -350,86 +331,10 @@ viewMain model =
             Pages.CreateAccount.view m |> Styled.map (Pages.CreateAccount.mapMsg CreateAccountMsg AccountCreated)
 
         NotFound { uid } ->
-            main_ [] <| viewNotFound uid "הדף שחיפשת לא קיים."
+            main_ [] <| NotFound.view uid "הדף שחיפשת לא קיים."
 
         Error _ str ->
             main_ [] [ p [] [ text str ] ]
-
-
-viewHome : String -> Maybe Invoices -> Html Msg
-viewHome uid invoices =
-    let
-        invoiceRow : Int -> InvoiceData -> Html Msg
-        invoiceRow num invoice =
-            tr []
-                [ td [] [ "#" ++ String.fromInt num |> text ]
-                , td [] [ viewDate invoice.date ]
-                , td [] [ text invoice.description ]
-                , td [] [ String.fromFloat invoice.amount ++ "₪" |> text ]
-                , td [] [ a [ href <| Route.invoice uid num ] [ text "👁️\u{200D}🗨️" ] ]
-                ]
-    in
-    main_ []
-        [ h2 [] [ text "קבלות" ]
-        , a [ href <| Route.createInvoice uid ] [ text "➕" ]
-        , case ( invoices, Maybe.map Invoices.isEmpty invoices ) of
-            ( Just _, Just True ) ->
-                p [] [ text "לא נוצרו קבלות עדיין." ]
-
-            ( Just i, _ ) ->
-                table [] <| Invoices.toList invoiceRow i
-
-            ( Nothing, _ ) ->
-                p [] [ text "טוען..." ]
-        ]
-
-
-viewInvoice : String -> Int -> Maybe Invoices -> AccountData -> Html Msg
-viewInvoice uid num invoices userData =
-    let
-        maybeInvoice =
-            Maybe.andThen (Invoices.get num) invoices
-    in
-    main_ [] <|
-        [ h2 [] [ text userData.name, a [ href <| Route.home uid ] [ text "❌" ] ]
-        , h3 [] [ "עוסק פטור " ++ userData.id |> text ]
-        , h4 [] [ "קבלה מס' " ++ String.fromInt num |> text ]
-        ]
-            ++ (case ( invoices, maybeInvoice ) of
-                    ( Nothing, _ ) ->
-                        [ p [] [ text "טוען..." ] ]
-
-                    ( Just _, Nothing ) ->
-                        viewNotFound uid ("אופס, לא מצאתי חשבונית עם מספר " ++ String.fromInt num)
-
-                    ( _, Just invoice ) ->
-                        [ p [] [ h4 [] [ text "עבור" ], text invoice.description ]
-                        , p [] [ "סה\"כ: " ++ String.fromFloat invoice.amount ++ "₪" |> text ]
-                        , viewDate invoice.date
-                        ]
-                            ++ (if invoice.status == Status.Created then
-                                    [ button [ onClick DownloadInvoice ] [ text "⬇️" ]
-                                    ]
-
-                                else
-                                    []
-                               )
-               )
-
-
-viewDate : Result String Date -> Html Msg
-viewDate rd =
-    case rd of
-        Ok d ->
-            time [ toDataString d |> datetime ] [ toShortString d |> text ]
-
-        Err _ ->
-            span [] [ text "INVALID DATE" ]
-
-
-viewNotFound : String -> String -> List (Html Msg)
-viewNotFound uid msg =
-    [ p [] [ text msg, br [] [], a [ href <| Route.home <| uid ] [ text "חזרה לדף הראשי" ] ] ]
 
 
 main : Program () Model Msg
